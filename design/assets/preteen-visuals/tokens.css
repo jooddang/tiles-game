@@ -1,0 +1,72 @@
+:root {
+  --font-display: "Nunito", "Baloo 2", system-ui, sans-serif;
+  --font-ui: "Inter", "Nunito", system-ui, sans-serif;
+
+  --radius-tile: 14px;
+  --radius-button: 12px;
+  --shadow-tile: 0 8px 0 rgba(20, 18, 47, 0.35), 0 14px 28px rgba(20, 18, 47, 0.22);
+  --shadow-button: 0 5px 0 rgba(20, 18, 47, 0.28);
+
+  --motion-pop: 140ms cubic-bezier(.2, .9, .2, 1.2);
+  --motion-slide: 190ms cubic-bezier(.2, .8, .2, 1);
+}
+
+[data-theme="cosmic-arcade"] {
+  --bg: #17162f;
+  --bg-pattern: #201f46;
+  --surface: #242454;
+  --surface-raised: #30306b;
+  --text: #f8fbff;
+  --text-muted: #b8c0ff;
+  --accent: #4de3ff;
+  --accent-2: #ff5ea8;
+  --success: #7cf57c;
+  --warning: #ffd166;
+  --danger: #ff5d73;
+  --tile-up: #4de3ff;
+  --tile-right: #ff5ea8;
+  --tile-down: #ffd166;
+  --tile-left: #7cf57c;
+  --tile-alt-1: #a78bfa;
+  --tile-alt-2: #ff8a3d;
+}
+
+[data-theme="candy-lab"] {
+  --bg: #fff7fb;
+  --bg-pattern: #ffe1f1;
+  --surface: #ffffff;
+  --surface-raised: #fff0f8;
+  --text: #30224f;
+  --text-muted: #735f9d;
+  --accent: #ff6fb1;
+  --accent-2: #54d6ff;
+  --success: #69df8a;
+  --warning: #ffcf4a;
+  --danger: #ff5d73;
+  --tile-up: #54d6ff;
+  --tile-right: #ff6fb1;
+  --tile-down: #ffcf4a;
+  --tile-left: #69df8a;
+  --tile-alt-1: #9d7cff;
+  --tile-alt-2: #ff9f5a;
+}
+
+[data-theme="island-quest"] {
+  --bg: #083344;
+  --bg-pattern: #0d4f63;
+  --surface: #f6e7b7;
+  --surface-raised: #fff2c8;
+  --text: #102a3a;
+  --text-muted: #3f6673;
+  --accent: #00c2a8;
+  --accent-2: #ffb238;
+  --success: #66d17a;
+  --warning: #f5c84b;
+  --danger: #f25f5c;
+  --tile-up: #00c2a8;
+  --tile-right: #ff7a59;
+  --tile-down: #ffcf4a;
+  --tile-left: #5dd39e;
+  --tile-alt-1: #4ea5ff;
+  --tile-alt-2: #c084fc;
+}

@@ -1,0 +1,37 @@
+<svg width="1200" height="760" viewBox="0 0 1200 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="760" rx="36" fill="#FFF7FB"/>
+  <path d="M0 612c152-54 276-62 430-10 166 56 310 40 456-18 128-50 212-48 314 10v166H0V612z" fill="#FFE1F1"/>
+  <circle cx="1040" cy="130" r="82" fill="#54D6FF" opacity=".22"/>
+  <circle cx="154" cy="620" r="96" fill="#FFCF4A" opacity=".25"/>
+  <text x="72" y="92" fill="#30224F" font-family="Nunito, Arial, sans-serif" font-size="46" font-weight="900">Candy Lab</text>
+  <text x="74" y="132" fill="#735F9D" font-family="Inter, Arial, sans-serif" font-size="20">bright tutorial energy, gel pieces, friendly but not babyish</text>
+
+  <g transform="translate(80 192)">
+    <rect width="470" height="426" rx="30" fill="#FFFFFF" stroke="#FFE1F1" stroke-width="6"/>
+    <g transform="translate(36 36)">
+      <rect width="86" height="86" rx="24" fill="#54D6FF"/><path d="M43 18v50M43 18L25 36M43 18l18 18" stroke="#30224F" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="106" width="86" height="86" rx="24" fill="#FF6FB1"/><path d="M130 43h50M180 43l-18-18M180 43l-18 18" stroke="#30224F" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="212" width="86" height="86" rx="24" fill="#FFCF4A"/><path d="M255 18v50M255 68l-18-18M255 68l18-18" stroke="#30224F" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="318" width="86" height="86" rx="24" fill="#69DF8A"/><path d="M382 43h-50M332 43l18-18M332 43l18 18" stroke="#30224F" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect y="108" width="86" height="86" rx="24" fill="#9D7CFF"/><path d="M43 126v50M43 126L25 144M43 126l18 18" stroke="#30224F" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="106" y="108" width="86" height="86" rx="24" fill="#FF9F5A"/><path d="M130 151h50M180 151l-18-18M180 151l-18 18" stroke="#30224F" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <rect x="36" y="306" width="180" height="62" rx="20" fill="#FF6FB1"/>
+    <text x="82" y="345" fill="#FFFFFF" font-family="Nunito, Arial, sans-serif" font-size="23" font-weight="900">POP</text>
+    <rect x="238" y="306" width="180" height="62" rx="20" fill="#FFF0F8" stroke="#FF6FB1" stroke-width="4"/>
+    <text x="284" y="345" fill="#30224F" font-family="Nunito, Arial, sans-serif" font-size="23" font-weight="900">HINT</text>
+  </g>
+
+  <g transform="translate(620 210)">
+    <text fill="#30224F" font-family="Nunito, Arial, sans-serif" font-size="28" font-weight="900">Swatches</text>
+    <g transform="translate(0 38)">
+      <rect width="72" height="72" rx="22" fill="#54D6FF"/><rect x="88" width="72" height="72" rx="22" fill="#FF6FB1"/><rect x="176" width="72" height="72" rx="22" fill="#FFCF4A"/><rect x="264" width="72" height="72" rx="22" fill="#69DF8A"/><rect x="352" width="72" height="72" rx="22" fill="#9D7CFF"/>
+    </g>
+    <text x="0" y="170" fill="#30224F" font-family="Nunito, Arial, sans-serif" font-size="28" font-weight="900">UI Motifs</text>
+    <g transform="translate(0 206)" stroke="#30224F" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M44 16c36-20 78 17 58 54-8 16-28 28-58 45-30-17-50-29-58-45-20-37 22-74 58-54z" fill="#FF6FB1" stroke="none"/>
+      <path d="M176 4l22 44 48 7-35 34 9 48-44-23-43 23 8-48-34-34 48-7 21-44z" fill="#FFCF4A" stroke="none"/>
+      <path d="M316 20c44 0 80 25 80 56s-36 56-80 56-80-25-80-56 36-56 80-56z" fill="#54D6FF" stroke="none"/>
+    </g>
+  </g>
+</svg>

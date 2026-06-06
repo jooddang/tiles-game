@@ -1,0 +1,37 @@
+<svg width="1200" height="760" viewBox="0 0 1200 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="760" rx="36" fill="#083344"/>
+  <path d="M0 530c170-62 296-42 420 0 178 60 306 32 468-28 116-43 222-42 312 18v240H0V530z" fill="#0D4F63"/>
+  <path d="M62 648c120-72 278-98 456-28 188 74 366 54 620-42" stroke="#00C2A8" stroke-width="14" stroke-linecap="round" opacity=".35"/>
+  <text x="72" y="92" fill="#FFF2C8" font-family="Nunito, Arial, sans-serif" font-size="46" font-weight="900">Island Quest</text>
+  <text x="74" y="132" fill="#C4E9E4" font-family="Inter, Arial, sans-serif" font-size="20">sunny adventure, map tokens, quest badges, tactile board play</text>
+
+  <g transform="translate(76 188)">
+    <rect width="482" height="438" rx="28" fill="#F6E7B7"/>
+    <g transform="translate(36 36)">
+      <rect width="84" height="84" rx="18" fill="#00C2A8"/><path d="M42 17v50M42 17L24 35M42 17l18 18" stroke="#102A3A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="104" width="84" height="84" rx="18" fill="#FF7A59"/><path d="M126 42h50M176 42l-18-18M176 42l-18 18" stroke="#102A3A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="208" width="84" height="84" rx="18" fill="#FFCF4A"/><path d="M250 17v50M250 67l-18-18M250 67l18-18" stroke="#102A3A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="312" width="84" height="84" rx="18" fill="#5DD39E"/><path d="M374 42h-50M324 42l18-18M324 42l18 18" stroke="#102A3A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect y="104" width="84" height="84" rx="18" fill="#4EA5FF"/><path d="M42 121v50M42 121L24 139M42 121l18 18" stroke="#102A3A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="104" y="104" width="84" height="84" rx="18" fill="#C084FC"/><path d="M126 146h50M176 146l-18-18M176 146l-18 18" stroke="#102A3A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <rect x="36" y="310" width="180" height="60" rx="17" fill="#00C2A8"/>
+    <text x="80" y="348" fill="#102A3A" font-family="Nunito, Arial, sans-serif" font-size="23" font-weight="900">GO</text>
+    <rect x="238" y="310" width="180" height="60" rx="17" fill="#FFF2C8" stroke="#102A3A" stroke-width="3"/>
+    <text x="280" y="348" fill="#102A3A" font-family="Nunito, Arial, sans-serif" font-size="23" font-weight="900">MAP</text>
+  </g>
+
+  <g transform="translate(626 206)">
+    <text fill="#FFF2C8" font-family="Nunito, Arial, sans-serif" font-size="28" font-weight="900">Palette</text>
+    <g transform="translate(0 38)">
+      <rect width="72" height="72" rx="18" fill="#00C2A8"/><rect x="88" width="72" height="72" rx="18" fill="#FF7A59"/><rect x="176" width="72" height="72" rx="18" fill="#FFCF4A"/><rect x="264" width="72" height="72" rx="18" fill="#5DD39E"/><rect x="352" width="72" height="72" rx="18" fill="#4EA5FF"/>
+    </g>
+    <text x="0" y="170" fill="#FFF2C8" font-family="Nunito, Arial, sans-serif" font-size="28" font-weight="900">Quest Marks</text>
+    <g transform="translate(0 208)">
+      <path d="M58 0l54 32v62l-54 32L4 94V32L58 0z" fill="#FFCF4A"/>
+      <path d="M172 8h112l-16 104H156L172 8z" fill="#00C2A8"/>
+      <circle cx="380" cy="62" r="58" fill="#FF7A59"/>
+      <path d="M358 64l16 16 31-37" stroke="#102A3A" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+</svg>

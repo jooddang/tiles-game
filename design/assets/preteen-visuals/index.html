@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Preteen Tile Puzzle Visual Assets</title>
+    <link rel="stylesheet" href="./tokens.css" />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #101028;
+        color: #f8fbff;
+        font-family: var(--font-ui);
+      }
+
+      main {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 32px 0 48px;
+      }
+
+      header {
+        display: grid;
+        gap: 8px;
+        margin-bottom: 28px;
+      }
+
+      h1,
+      h2 {
+        margin: 0;
+        font-family: var(--font-display);
+        line-height: 1;
+      }
+
+      h1 {
+        font-size: clamp(34px, 6vw, 64px);
+      }
+
+      h2 {
+        font-size: 28px;
+        margin-bottom: 14px;
+      }
+
+      p {
+        max-width: 760px;
+        margin: 0;
+        color: #b8c0ff;
+        font-size: 17px;
+        line-height: 1.55;
+      }
+
+      section {
+        margin-top: 34px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 18px;
+      }
+
+      .asset {
+        border: 1px solid rgba(184, 192, 255, 0.22);
+        border-radius: 14px;
+        background: #17162f;
+        overflow: hidden;
+      }
+
+      .asset img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .asset footer {
+        padding: 12px 14px 14px;
+        color: #b8c0ff;
+        font-size: 14px;
+      }
+
+      .swatches {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 14px;
+      }
+
+      .theme {
+        display: grid;
+        gap: 12px;
+        padding: 16px;
+        border-radius: 14px;
+        background: var(--surface);
+        color: var(--text);
+      }
+
+      .chips {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 8px;
+      }
+
+      .chip {
+        aspect-ratio: 1;
+        border-radius: 10px;
+      }
+
+      .name {
+        font-family: var(--font-display);
+        font-size: 20px;
+        font-weight: 900;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Preteen Tile Puzzle Assets</h1>
+        <p>Three visual directions for a mobile and desktop browser puzzle. Cosmic Arcade is the recommended default because it keeps the board high contrast while still feeling energetic.</p>
+      </header>
+
+      <section>
+        <h2>Visual Directions</h2>
+        <div class="grid">
+          <article class="asset">
+            <img src="./variants/cosmic-arcade.svg" alt="Cosmic Arcade visual direction" />
+            <footer>Recommended default: neon tokens, strong contrast, arcade puzzle feel.</footer>
+          </article>
+          <article class="asset">
+            <img src="./variants/candy-lab.svg" alt="Candy Lab visual direction" />
+            <footer>Tutorial-friendly: bright, soft, approachable, and readable.</footer>
+          </article>
+          <article class="asset">
+            <img src="./variants/island-quest.svg" alt="Island Quest visual direction" />
+            <footer>Future pack direction: sunny, collectible, adventure-like.</footer>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <h2>Palettes</h2>
+        <div class="swatches">
+          <div class="theme" data-theme="cosmic-arcade">
+            <div class="name">Cosmic Arcade</div>
+            <div class="chips">
+              <div class="chip" style="background: var(--tile-up)"></div>
+              <div class="chip" style="background: var(--tile-right)"></div>
+              <div class="chip" style="background: var(--tile-down)"></div>
+              <div class="chip" style="background: var(--tile-left)"></div>
+              <div class="chip" style="background: var(--tile-alt-1)"></div>
+              <div class="chip" style="background: var(--tile-alt-2)"></div>
+            </div>
+          </div>
+          <div class="theme" data-theme="candy-lab">
+            <div class="name">Candy Lab</div>
+            <div class="chips">
+              <div class="chip" style="background: var(--tile-up)"></div>
+              <div class="chip" style="background: var(--tile-right)"></div>
+              <div class="chip" style="background: var(--tile-down)"></div>
+              <div class="chip" style="background: var(--tile-left)"></div>
+              <div class="chip" style="background: var(--tile-alt-1)"></div>
+              <div class="chip" style="background: var(--tile-alt-2)"></div>
+            </div>
+          </div>
+          <div class="theme" data-theme="island-quest">
+            <div class="name">Island Quest</div>
+            <div class="chips">
+              <div class="chip" style="background: var(--tile-up)"></div>
+              <div class="chip" style="background: var(--tile-right)"></div>
+              <div class="chip" style="background: var(--tile-down)"></div>
+              <div class="chip" style="background: var(--tile-left)"></div>
+              <div class="chip" style="background: var(--tile-alt-1)"></div>
+              <div class="chip" style="background: var(--tile-alt-2)"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Game Assets</h2>
+        <div class="grid">
+          <article class="asset">
+            <img src="./tiles/tile-arrow-sprite.svg" alt="Tile arrow sprite sheet" />
+            <footer>Directional tile sprite sheet with active, blocked, hint, and removable states.</footer>
+          </article>
+          <article class="asset">
+            <img src="./ui/badges-and-buttons.svg" alt="Badges and buttons" />
+            <footer>Level badges, completion stat cards, and short game-control buttons.</footer>
+          </article>
+          <article class="asset">
+            <img src="./ui/background-patterns.svg" alt="Background patterns" />
+            <footer>Subtle board backgrounds. Keep them outside tiles to preserve readability.</footer>
+          </article>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

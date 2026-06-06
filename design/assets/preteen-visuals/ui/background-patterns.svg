@@ -1,0 +1,34 @@
+<svg width="960" height="640" viewBox="0 0 960 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="cosmic-dots" width="72" height="72" patternUnits="userSpaceOnUse">
+      <rect width="72" height="72" fill="#17162F"/>
+      <circle cx="16" cy="18" r="3" fill="#4DE3FF" opacity=".45"/>
+      <circle cx="54" cy="42" r="4" fill="#FF5EA8" opacity=".38"/>
+      <path d="M32 54h18M41 45v18" stroke="#FFD166" stroke-width="4" stroke-linecap="round" opacity=".4"/>
+    </pattern>
+    <pattern id="candy-bubbles" width="96" height="96" patternUnits="userSpaceOnUse">
+      <rect width="96" height="96" fill="#FFF7FB"/>
+      <circle cx="22" cy="26" r="14" fill="#54D6FF" opacity=".24"/>
+      <circle cx="70" cy="64" r="18" fill="#FF6FB1" opacity=".18"/>
+      <circle cx="46" cy="78" r="9" fill="#FFCF4A" opacity=".25"/>
+    </pattern>
+    <pattern id="island-map" width="100" height="100" patternUnits="userSpaceOnUse">
+      <rect width="100" height="100" fill="#083344"/>
+      <path d="M-20 70c38-30 70-30 108 0s70 30 108 0" stroke="#00C2A8" stroke-width="8" stroke-linecap="round" opacity=".22"/>
+      <path d="M28 22l12 24 26 4-19 18 5 26-24-13-24 13 5-26-19-18 26-4 12-24z" fill="#FFCF4A" opacity=".18"/>
+    </pattern>
+  </defs>
+
+  <rect width="960" height="640" rx="32" fill="#101028"/>
+  <text x="48" y="68" fill="#F8FBFF" font-family="Nunito, Arial, sans-serif" font-size="32" font-weight="900">Background Patterns</text>
+  <text x="50" y="102" fill="#B8C0FF" font-family="Inter, Arial, sans-serif" font-size="18">Low-contrast patterns that should stay behind the board, not inside tiles.</text>
+
+  <g transform="translate(48 150)">
+    <rect width="250" height="340" rx="26" fill="url(#cosmic-dots)"/>
+    <text x="26" y="302" fill="#F8FBFF" font-family="Nunito, Arial, sans-serif" font-size="24" font-weight="900">Cosmic</text>
+    <rect x="316" width="250" height="340" rx="26" fill="url(#candy-bubbles)"/>
+    <text x="342" y="302" fill="#30224F" font-family="Nunito, Arial, sans-serif" font-size="24" font-weight="900">Candy</text>
+    <rect x="632" width="250" height="340" rx="26" fill="url(#island-map)"/>
+    <text x="658" y="302" fill="#FFF2C8" font-family="Nunito, Arial, sans-serif" font-size="24" font-weight="900">Island</text>
+  </g>
+</svg>

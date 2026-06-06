@@ -1,0 +1,55 @@
+<svg width="960" height="640" viewBox="0 0 960 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="tileShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="0" flood-color="#14122F" flood-opacity=".28"/>
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#14122F" flood-opacity=".22"/>
+    </filter>
+    <g id="arrow-up">
+      <path d="M64 28v72M64 28L37 55M64 28l27 27" stroke="currentColor" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g id="arrow-right">
+      <path d="M28 64h72M100 64L73 37M100 64L73 91" stroke="currentColor" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g id="arrow-down">
+      <path d="M64 28v72M64 100L37 73M64 100l27-27" stroke="currentColor" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g id="arrow-left">
+      <path d="M100 64H28M28 64l27-27M28 64l27 27" stroke="currentColor" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </defs>
+
+  <rect width="960" height="640" rx="32" fill="#17162F"/>
+  <text x="48" y="66" fill="#F8FBFF" font-family="Nunito, Arial, sans-serif" font-size="32" font-weight="900">Tile Arrow Sprite Sheet</text>
+  <text x="50" y="100" fill="#B8C0FF" font-family="Inter, Arial, sans-serif" font-size="18">Use shape + arrow direction, never color alone.</text>
+
+  <g transform="translate(48 146)" filter="url(#tileShadow)" color="#17162F">
+    <rect width="128" height="128" rx="24" fill="#4DE3FF"/><use href="#arrow-up"/>
+    <g transform="translate(158 0)"><rect width="128" height="128" rx="24" fill="#FF5EA8"/><use href="#arrow-right"/></g>
+    <g transform="translate(316 0)"><rect width="128" height="128" rx="24" fill="#FFD166"/><use href="#arrow-down"/></g>
+    <g transform="translate(474 0)"><rect width="128" height="128" rx="24" fill="#7CF57C"/><use href="#arrow-left"/></g>
+    <g transform="translate(632 0)"><rect width="128" height="128" rx="24" fill="#A78BFA"/><use href="#arrow-up"/></g>
+    <g transform="translate(790 0)"><rect width="128" height="128" rx="24" fill="#FF8A3D"/><use href="#arrow-right"/></g>
+  </g>
+
+  <g transform="translate(48 330)" filter="url(#tileShadow)">
+    <g color="#F8FBFF">
+      <rect width="128" height="128" rx="24" fill="#30306B"/><use href="#arrow-up"/>
+      <g transform="translate(158 0)"><rect width="128" height="128" rx="24" fill="#30306B"/><use href="#arrow-right"/></g>
+      <g transform="translate(316 0)"><rect width="128" height="128" rx="24" fill="#30306B"/><use href="#arrow-down"/></g>
+      <g transform="translate(474 0)"><rect width="128" height="128" rx="24" fill="#30306B"/><use href="#arrow-left"/></g>
+    </g>
+    <g transform="translate(632 0)" color="#B8C0FF">
+      <rect width="128" height="128" rx="24" fill="#242454" stroke="#B8C0FF" stroke-width="4" stroke-dasharray="10 10"/><use href="#arrow-up"/>
+    </g>
+    <g transform="translate(790 0)" color="#17162F">
+      <rect width="128" height="128" rx="24" fill="#7CF57C"/><circle cx="100" cy="28" r="16" fill="#F8FBFF"/><path d="M94 28l5 5 10-12" stroke="#17162F" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><use href="#arrow-left"/>
+    </g>
+  </g>
+
+  <g transform="translate(48 526)">
+    <rect width="22" height="22" rx="6" fill="#4DE3FF"/><text x="34" y="18" fill="#F8FBFF" font-family="Inter, Arial, sans-serif" font-size="16">active</text>
+    <rect x="126" width="22" height="22" rx="6" fill="#30306B"/><text x="160" y="18" fill="#F8FBFF" font-family="Inter, Arial, sans-serif" font-size="16">blocked</text>
+    <rect x="266" width="22" height="22" rx="6" fill="#242454" stroke="#B8C0FF" stroke-width="2" stroke-dasharray="4 4"/><text x="300" y="18" fill="#F8FBFF" font-family="Inter, Arial, sans-serif" font-size="16">hint ray</text>
+    <rect x="420" width="22" height="22" rx="6" fill="#7CF57C"/><text x="454" y="18" fill="#F8FBFF" font-family="Inter, Arial, sans-serif" font-size="16">removable</text>
+  </g>
+</svg>
