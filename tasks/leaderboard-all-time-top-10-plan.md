@@ -1,7 +1,7 @@
 <!-- /autoplan restore point: /Users/jooddang/.gstack/projects/jooddang-tiles-game/main-autoplan-restore-20260724-135948.md -->
 # All-Time Top 10 Leaderboard Plan
 
-Status: **APPROVED**
+Status: **COMPLETED**
 Reviewed: 2026-07-24
 Approved: 2026-07-25
 
@@ -15,7 +15,7 @@ requirements-to-evidence review, and an adversarial code-review gate per phase.
 | 1 | Versioned replay and API protocol contract | Completed | 53 unit, 2 publish-safety, 1 Chromium parity, 8 vendored-contract tests; both independent gates PASS |
 | 2 | Supabase schema, API, security, and operations | Completed | 25 unit/service/route, 8 static safety, 43 pgTAP, real DB concurrency, repeatable five-route HTTP, 9 vendored-contract tests, production Next build; both independent gates PASS |
 | 3 | Ranked client flow, UI, and accessibility | Completed | 102 unit/component, 30 browser E2E, five target viewports in both Playwright projects, production build; both independent gates PASS |
-| 4 | Local DX, integration/E2E, release, and rollback | In progress | Pending |
+| 4 | Local DX, integration/E2E, release, and rollback | Completed | 9 contract, 27 unit, 17 SQL/docs/safety, 43 pgTAP, concurrency/HTTP/live iframe/host E2E, 21.3s full verify, 18.4s smoke, production build; both independent gates PASS |
 
 Implementation branches:
 
@@ -76,6 +76,25 @@ must remain untouched, and is excluded from every leaderboard commit and review.
   landscape. The full browser suite passes in both desktop and mobile projects.
 - The 102-test unit/component suite, typecheck, lint, production browser build,
   replay-contract build, 30 browser E2E tests, and diff safety check pass.
+- Independent requirements verification: PASS.
+- Independent adversarial code review: PASS with no P1/P2 findings.
+
+### Phase 4 Verification Report
+
+- One preflighted runner owns local Supabase, migration, deterministic seed,
+  synchronized browser/contract artifacts, Next startup, exact state restore,
+  smoke, full verification, and teardown.
+- The live host E2E binds the HTTP target to the runner-owned Next process,
+  publishes a legal replay only on a unique compact test level, verifies Top
+  10/PB through the real API and iframe reload, and removes only its exact rows.
+- Cleanup independently attempts level, settings metadata, and audit restore;
+  normal SIGINT/SIGTERM unwinds through the same path. Focused failure tests
+  cover aggregation and deferred interruption.
+- Both repositories run the documented cross-repository smoke and verify gates
+  from explicit paired branch refs, with safe stale-ref fallback after merge.
+- Warm local TTHW measured 18.4 seconds for smoke; full verification measured
+  21.3 seconds. Typecheck, production build, and post-run zero-residue checks
+  pass.
 - Independent requirements verification: PASS.
 - Independent adversarial code review: PASS with no P1/P2 findings.
 
@@ -1025,8 +1044,8 @@ Freeze DTOs and contract artifacts in A. Then run B and C in parallel. Merge bot
 - [x] **ENG-T3 (P1, human: ~1 day / CC: ~1 h)** — API — Implement split routes, opaque identity, strict validation, and stable errors.
 - [x] **ENG-T4 (P1, human: ~1 day / CC: ~1 h)** — Client — Implement attempt reducer, recovery, fetch adapter, controller integration, and PB v2 migration.
 - [x] **ENG-T5 (P1, human: ~1 day / CC: ~1 h)** — UI — Implement reviewed responsive and accessible records states.
-- [ ] **ENG-T6 (P1, human: ~1 day / CC: ~1.5 h)** — Verification — Add local Supabase tests and host-level cross-repo Playwright.
-- [ ] **ENG-T7 (P2, human: ~4 h / CC: ~30 min)** — Operations — Document WAF, add operator script, metrics queries, alert/runbook, and staged rollout.
+- [x] **ENG-T6 (P1, human: ~1 day / CC: ~1.5 h)** — Verification — Add local Supabase tests and host-level cross-repo Playwright.
+- [x] **ENG-T7 (P2, human: ~4 h / CC: ~30 min)** — Operations — Document WAF, add operator script, metrics queries, alert/runbook, and staged rollout.
 
 ### Engineering Completion Summary
 
@@ -1186,15 +1205,15 @@ Three required error examples:
 
 | Stage | Developer does | Resolved friction | Status |
 |---|---|---|---|
-| 1. Discover | follows either README link to the canonical guide | no roadcrosser root README | Planned |
-| 2. Install | installs both npm trees and listed prerequisites | hidden Docker/CLI requirement | Planned |
-| 3. Configure | accepts safe local defaults or sets `TILES_GAME_ROOT` | sibling/env guessing | Planned |
-| 4. Hello World | runs `dev:tiles-leaderboard` then the smoke command | no full-stack proof | Planned |
-| 5. Integrate | edits typed protocol/client/server modules | ambiguous DTO ownership | Planned |
-| 6. Debug | follows stable code, request ID, and debug output | incompatible failures | Planned |
-| 7. Test | runs focused watch, smoke, or full verify command | unnamed startup/test order | Planned |
-| 8. Upgrade | increments contract, retains current+previous, follows compatibility checklist | policy without procedure | Planned |
-| 9. Operate | uses flags, metrics query, moderation script, deploy/rollback runbook | architecture-only operations | Planned |
+| 1. Discover | follows either README link to the canonical guide | no roadcrosser root README | Completed |
+| 2. Install | installs both npm trees and listed prerequisites | hidden Docker/CLI requirement | Completed |
+| 3. Configure | accepts safe local defaults or sets `TILES_GAME_ROOT` | sibling/env guessing | Completed |
+| 4. Hello World | runs `dev:tiles-leaderboard` then the smoke command | no full-stack proof | Completed |
+| 5. Integrate | edits typed protocol/client/server modules | ambiguous DTO ownership | Completed |
+| 6. Debug | follows stable code, request ID, and debug output | incompatible failures | Completed |
+| 7. Test | runs focused watch, smoke, or full verify command | unnamed startup/test order | Completed |
+| 8. Upgrade | increments contract, retains current+previous, follows compatibility checklist | policy without procedure | Completed |
+| 9. Operate | uses flags, metrics query, moderation script, deploy/rollback runbook | architecture-only operations | Completed |
 
 ### First-Time Developer Confusion Report
 
@@ -1232,7 +1251,8 @@ npm run dev:tiles-leaderboard       # full local stack; non-destructive
 npm run smoke:tiles-leaderboard     # golden replay through real API + DB
 npm run verify:tiles-leaderboard    # contract, SQL/routes, host Playwright
 npm run test:tiles-leaderboard:db   # local Supabase SQL and route tests
-npm run test:tiles-leaderboard:e2e  # iframe and same-origin host flows
+npm run test:tiles-leaderboard:live # iframe and same-origin host flows
+npm run stop:tiles-leaderboard      # stop local Supabase without reset
 ```
 
 Tiles-game retains focused feedback:
@@ -1266,26 +1286,26 @@ Rollback disables writes, reactivates the previous level version, redeploys the 
 
 ### DX Implementation Checklist
 
-- [ ] TTHW is measured at ≤ 5 minutes after prerequisites, not merely estimated.
-- [ ] One documented command starts the full non-destructive local stack.
-- [ ] `supabase/config.toml`, deterministic seed, and placeholder-only env example are committed.
-- [ ] Both READMEs link to one canonical guide.
-- [ ] `TILES_GAME_ROOT` and local port overrides are validated and documented.
-- [ ] One generated versioned protocol artifact is consumed by both repos.
-- [ ] Stable error codes include message, retryability, request ID, and recovery docs.
-- [ ] Golden smoke proves cookie, attempt, replay, public Top 10, and private PB.
-- [ ] Focused, smoke, full verification, and teardown commands are named.
-- [ ] Logs are structured and exclude identity tokens, raw IPs, and commands.
-- [ ] Deploy and inverse rollback steps preserve current+previous compatibility.
-- [ ] CI runs the documented smoke and verification commands verbatim.
-- [ ] `/devex-review` measures the implemented flow before release.
+- [x] TTHW is measured at ≤ 5 minutes after prerequisites, not merely estimated.
+- [x] One documented command starts the full non-destructive local stack.
+- [x] `supabase/config.toml`, deterministic seed, and placeholder-only env example are committed.
+- [x] Both READMEs link to one canonical guide.
+- [x] `TILES_GAME_ROOT` and local port overrides are validated and documented.
+- [x] One generated versioned protocol artifact is consumed by both repos.
+- [x] Stable error codes include message, retryability, request ID, and recovery docs.
+- [x] Golden smoke proves cookie, attempt, replay, public Top 10, and private PB.
+- [x] Focused, smoke, full verification, and teardown commands are named.
+- [x] Logs are structured and exclude identity tokens, raw IPs, and commands.
+- [x] Deploy and inverse rollback steps preserve current+previous compatibility.
+- [x] CI runs the documented smoke and verification commands verbatim.
+- [x] `/devex-review` measures the implemented flow before release.
 
 ### DX Implementation Tasks
 
-- [ ] **DX-T1 (P1, human: ~1 day / CC: ~1 h)** — Local stack — Add the canonical guide, committed Supabase local project, safe env example, preflight, and `dev:tiles-leaderboard`.
+- [x] **DX-T1 (P1, human: ~1 day / CC: ~1 h)** — Local stack — Add the canonical guide, committed Supabase local project, safe env example, preflight, and `dev:tiles-leaderboard`.
 - [x] **DX-T2 (P1, human: ~4 h / CC: ~30 min)** — Protocol — Generate the shared versioned DTO/error artifact and compatibility check.
-- [ ] **DX-T3 (P1, human: ~1 day / CC: ~1 h)** — Verification — Add golden smoke, focused commands, host orchestration, and docs-drift CI.
-- [ ] **DX-T4 (P2, human: ~4 h / CC: ~30 min)** — Operations — Add structured debug logs and the exact deploy/rollback runbook.
+- [x] **DX-T3 (P1, human: ~1 day / CC: ~1 h)** — Verification — Add golden smoke, focused commands, host orchestration, and docs-drift CI.
+- [x] **DX-T4 (P2, human: ~4 h / CC: ~30 min)** — Operations — Add structured debug logs and the exact deploy/rollback runbook.
 
 ### DX Completion Summary
 
@@ -1301,7 +1321,7 @@ Rollback disables writes, reactivates the previous level version, redeploys the 
 | Dimensions            | 8/8 reviewed                              |
 | Dual voices           | 6/6 confirmed, 0 disagreements            |
 | Magical moment        | golden replay smoke                       |
-| Remaining proof       | measured post-implementation DX review    |
+| Remaining proof       | none; local implementation gate passed    |
 +====================================================================+
 ```
 
