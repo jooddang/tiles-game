@@ -11,7 +11,7 @@ Add a public, all-time Top 10 leaderboard to the tile game so a player can compa
 ## Initial Product Decisions
 
 - Rank entries per immutable level version. Times from different boards are not comparable.
-- Primary ordering: lowest server-measured completion time in centiseconds.
+- Primary ordering: lowest server-measured completion time in whole seconds.
 - Tie-breakers: earlier `achieved_at`, then stable entry ID.
 - Keep only one best entry per player identity and level version in leaderboard reads.
 - Show the Top 10 for the current level plus the player's resulting rank after a valid submission.
@@ -33,11 +33,13 @@ Add a public, all-time Top 10 leaderboard to the tile game so a player can compa
 ## Proposed Components
 
 - `src/leaderboard/`: typed client API, leaderboard state, and UI panel.
-- `src/game/useGameController.ts`: begin attempt, append accepted moves, submit completion.
+- `src/game/useGameController.ts`: emit ranked commands and consume ranked-attempt state without owning network orchestration.
 - Server API:
-  - `POST /api/leaderboard/attempts`
-  - `POST /api/leaderboard/attempts/:attemptId/complete`
-  - `GET /api/leaderboard?levelVersionId=...&limit=10`
+  - `GET /api/tiles-game/leaderboard/:levelVersionId`
+  - `GET /api/tiles-game/leaderboard/:levelVersionId/me`
+  - `POST /api/tiles-game/leaderboard/attempts`
+  - `GET /api/tiles-game/leaderboard/attempts/:attemptId`
+  - `POST /api/tiles-game/leaderboard/attempts/:attemptId/complete`
 - Persistent tables:
   - anonymous players
   - immutable level versions
@@ -387,6 +389,15 @@ error threshold crossed?
 | 13 | Design | Show personal result separately when outside Top 10 | Auto-decided | Completeness | A fake row 11 misrepresents the Top 10 and confuses hierarchy | Append player as row 11 |
 | 14 | Design | Make generated identity visible before ranked play | Mechanical | Design for trust | The player must know which public identity will appear | Reveal only after submission |
 | 15 | Design | Raise new and shared leaderboard controls to 44px minimum | Mechanical | Completeness | Existing 42px game buttons miss the stated touch requirement | Apply 44px only to new controls |
+| 16 | Eng | Vendor a versioned Node replay kernel and manifest into roadcrosser | Auto-decided | DRY | One generated artifact preserves exact rules without a registry or duplicate implementation | Fixtures-only or copied rewrite |
+| 17 | Eng | Define level version as ruleset version plus canonical gameplay hash | Mechanical | Completeness | Legal moves depend on code and constants as well as level JSON | Content hash alone |
+| 18 | Eng | Rank at whole-second precision from a future server start | Auto-decided | Pragmatic | Network jitter makes centiseconds misleading for casual records | Client time or centiseconds |
+| 19 | Eng | Split public Top 10 from private player and attempt endpoints | Mechanical | Security | Personalized responses must never enter public caches | Mixed cached response |
+| 20 | Eng | Store immutable scores plus a recomputable best pointer | Auto-decided | Completeness | Moderation must restore the next legitimate personal best | Destructive single PB row |
+| 21 | Eng | Use one transactional completion SQL function | Mechanical | Explicit over clever | Attempt finalization, score insert, PB update, and rank must be atomic | Multi-call transaction |
+| 22 | Eng | Remove background-tab invalidation as trust evidence | Auto-decided reversal | Pragmatic | It penalizes honest users and modified clients can suppress it | Terminal visibility failure |
+| 23 | Eng | Fix local best selection to compare elapsed time | Mechanical | Correctness | Existing move-count comparison keeps the first 270-move result | Preserve existing comparator |
+| 24 | Eng | Use DB-backed runtime flags and rate buckets | Auto-decided | Completeness | Serverless memory and build-time flags cannot provide runtime control | In-memory limits |
 
 ## Phase 2 — Design Review
 
@@ -475,7 +486,7 @@ COUNTDOWN 3 → 2 → 1
   ├─ cancel / level change ─▶ UNRANKED
   ▼
 RANKED_ACTIVE
-  ├─ tab hidden ─▶ INVALIDATED
+  ├─ tab hidden ─▶ ACTIVE (server time continues)
   ├─ restart ─▶ ENDED ─▶ optional new STARTING
   ├─ level change ─▶ ENDED
   └─ complete ─▶ LEVEL_CLEAR + SUBMITTING
@@ -498,7 +509,7 @@ Board input is disabled during `STARTING` and `COUNTDOWN`. Undo is allowed and s
 | Attempt start | Pending | “Preparing ranked run…”; board disabled | Cancel |
 | Countdown | Active | Centered 3/2/1, reduced-motion fade only | Cancel |
 | Ranked run | Active | Persistent “Ranked” badge and server-clock display | Play |
-| Ranked run | Invalidated | “Ranked run ended because the game left the foreground.” | Play unranked |
+| Ranked run | Backgrounded | Timer continues; returning player sees current elapsed time | Continue or restart |
 | Submission | Pending | Existing “Level clear” plus “Checking ranked run…” | None |
 | Submission | Top 10 + PB | “#N · New personal best · 00:18.42” | View records |
 | Submission | PB outside Top 10 | “New personal best · Rank #N” | View records |
@@ -604,5 +615,353 @@ Viewport acceptance checks cover 320×568, 390×844, 760×800, 1280×800, and sh
 | Mockups               | skipped: design binary unavailable         |
 | Overall design score  | 4.5/10 → 9/10                              |
 | Dual voices           | 7/7 confirmed concerns                     |
++====================================================================+
+```
+
+## Phase 3 — Engineering Review
+
+### Step 0 — Scope Challenge
+
+The plan crosses two repositories because tiles-game owns gameplay rules while roadcrosser owns the production runtime and database. This exceeds eight files and two components, but reducing it to client-only writes, duplicate replay logic, or a public database API would fail the trust boundary. The complete scope stays, constrained to one generated replay artifact, five small routes, isolated database objects, and one client feature module.
+
+No standalone service, queue, realtime system, package registry, or admin UI is introduced. Existing engine, static sync, Next route-handler, Supabase migration, and Vercel deployment patterns are reused.
+
+### Engineering Dual Voices
+
+#### CLAUDE SUBAGENT (eng — independent review)
+
+The independent engineer found thirteen issues, including two feasibility blockers: server timing precision was undefined and the replay kernel had no deployable ownership. It also identified cache-personalization leakage, incomplete transaction semantics, non-executable cross-repo tests, service-role hardening, missing ruleset versioning, anomaly publication, local PB comparison by moves, false visibility invalidation, and retention.
+
+#### CODEX SAYS (eng — architecture challenge)
+
+Codex found eight high-confidence issues. It independently confirmed the missing vendored replay artifact, ruleset-aware hashes, future server start, result recovery, transactional completion, durable rate limiting, visibility-event limitation, and host-level cross-repo testing.
+
+```text
+ENG DUAL VOICES — CONSENSUS TABLE
+═══════════════════════════════════════════════════════════════
+Dimension                           Claude  Codex  Consensus
+─────────────────────────────────── ─────── ────── ─────────
+1. Architecture sound?             NO      NO      CONFIRMED
+2. Test coverage sufficient?       NO      NO      CONFIRMED
+3. Performance risks addressed?    NO      NO      CONFIRMED
+4. Security threats covered?       NO      NO      CONFIRMED
+5. Error paths handled?            NO      NO      CONFIRMED
+6. Deployment risk manageable?     NO      NO      CONFIRMED
+═══════════════════════════════════════════════════════════════
+```
+
+All six confirmed gaps are resolved by the contracts below.
+
+### Section 1 — Architecture
+
+#### Deployment Ownership
+
+`tiles-game` builds two products from one rules source:
+
+1. the browser bundle under `dist/`;
+2. a Node-safe replay contract under `dist-server-contract/`.
+
+The roadcrosser sync copies the browser build to `public/games/tiles-game/` and the server contract to `vendor/tiles-game-leaderboard/<replayContractVersion>/`. Its guarded publisher allowlist and staging expand to exactly those directories. No other roadcrosser files are auto-committed.
+
+```text
+tiles-game
+┌─────────────────────────────┐
+│ src/engine + src/levels     │
+└──────────────┬──────────────┘
+               │ npm run build
+       ┌───────┴────────┐
+       ▼                ▼
+ browser dist/    server contract/
+       │           ├─ replay-kernel.mjs
+       │           ├─ levels.json
+       │           └─ contract.json
+       └───────┬────────┘
+               │ roadcrosser sync
+               ▼
+roadcrosser
+├─ public/games/tiles-game/
+├─ vendor/tiles-game-leaderboard/vN/
+├─ app/api/tiles-game/leaderboard/
+└─ Supabase tiles_* objects
+```
+
+`contract.json` contains `replayContractVersion`, the kernel SHA-256, and every `levelVersionId`. A level version is:
+
+```text
+sha256(
+  replayContractVersion
+  + canonical JSON of width, height, and tiles sorted by tile id
+)
+```
+
+Presentation-only title and color do not affect the hash. Geometry constants, direction rays, remove/undo semantics, or canonical serialization changes require a new replay contract version.
+
+The server starts ranked attempts only for active level versions. The current and immediately previous kernel remain vendored for a 30-day rollback window. Retired clients receive `LEVEL_VERSION_RETIRED` before countdown; accepted historical scores stay readable.
+
+#### Runtime Data Flow
+
+```text
+PUBLIC READ, CACHEABLE
+GET /leaderboard/:levelVersionId
+  ├─ validate active or historical version
+  ├─ query visible personal-best rows, limit exactly 10
+  └─ Cache-Control: public, s-maxage=30, stale-while-revalidate=300
+
+PRIVATE IDENTITY, NEVER CACHE
+GET /leaderboard/:levelVersionId/me
+  ├─ resolve or create opaque browser cookie
+  ├─ query generated name, personal best, and rank
+  └─ Cache-Control: private, no-store
+
+RANKED RUN
+POST /attempts
+  ├─ validate Origin, Fetch Metadata, and bounded JSON
+  ├─ resolve identity and durable rate bucket
+  ├─ validate level contract
+  ├─ create attempt with starts_at = DB now() + 5 seconds
+  └─ return attemptId, startsAt, expiresAt, and generated name
+
+client countdown; input unlocks at startsAt
+  │
+  ▼
+POST /attempts/:id/complete
+  ├─ validate bounded command log
+  ├─ replay with vendored kernel
+  ├─ call one completion SQL function
+  │    terminalize attempt
+  │    insert immutable score
+  │    quarantine or publish
+  │    recompute PB pointer
+  │    compute personal rank
+  │    store terminal response
+  └─ return the stored response idempotently
+```
+
+If the start response arrives less than one second before `startsAt`, the client cancels it and requests a new attempt. Score duration is `ceil(DB completion receipt - startsAt)` in whole seconds. Completion upload latency remains part of the casual score and is disclosed in the product contract.
+
+#### Browser Attempt State
+
+`src/leaderboard/attemptMachine.ts` is a pure reducer. `leaderboardClient.ts` owns fetch calls, cookie-bearing same-origin requests, AbortControllers, and public/private result merging. `useRankedAttempt.ts` binds them to React. `useGameController.ts` only emits accepted `remove` and state-changing `undo` commands, then freezes an immutable log at first completion.
+
+Session storage keeps only the active attempt ID, contract version, starts/expiry timestamps, and bounded command log so a lost response or reload can recover. The HttpOnly identity token never enters JavaScript.
+
+### Data Model
+
+```text
+tiles_players
+  id uuid PK
+  identity_token_hash bytea UNIQUE
+  generated_name text UNIQUE
+  created_at, last_seen_at
+
+tiles_level_versions
+  id text PK                    -- levelVersionId
+  level_key text
+  replay_contract_version int
+  canonical_level jsonb
+  active boolean
+  quarantine_below_seconds int
+  created_at, retired_at
+
+tiles_attempts
+  id uuid PK
+  player_id uuid FK
+  level_version_id text FK
+  client_request_id uuid
+  status enum(started, completed, expired, rejected)
+  starts_at, expires_at, completed_at
+  command_count int
+  command_hash bytea
+  terminal_response jsonb
+  rejection_code text
+  UNIQUE(player_id, client_request_id)
+
+tiles_scores
+  id uuid PK
+  attempt_id uuid UNIQUE FK
+  player_id uuid FK
+  level_version_id text FK
+  elapsed_seconds int
+  achieved_at timestamptz
+  visibility enum(published, quarantined, hidden)
+  anomaly_code text
+
+tiles_player_bests
+  level_version_id text
+  player_id uuid
+  score_id uuid FK
+  PRIMARY KEY(level_version_id, player_id)
+
+tiles_leaderboard_settings
+  singleton boolean PK
+  reads_enabled boolean
+  writes_enabled boolean
+  updated_at, updated_by
+
+tiles_rate_buckets
+  bucket_key bytea
+  window_start timestamptz
+  count int
+  expires_at timestamptz
+  PRIMARY KEY(bucket_key, window_start)
+```
+
+All tables have RLS enabled with no `anon` or `authenticated` policies. Direct table and function privileges are revoked. Only the roadcrosser server-only admin client accesses them. Security-definer functions live in a non-exposed schema, set an empty `search_path`, fully qualify relations, and grant execution only to the server role.
+
+#### Completion Transaction
+
+One SQL function receives validated replay output, not raw commands. It:
+
+1. locks the attempt;
+2. checks owner, level, status, and expiry with DB time;
+3. returns the stored terminal response if already completed;
+4. marks the attempt completed and stores command hash/count;
+5. inserts an immutable score;
+6. chooses `quarantined` below the configured level floor, otherwise `published`;
+7. recomputes the player's best visible score using `(elapsed_seconds, achieved_at, id)`;
+8. computes rank against visible PB pointers using the same tuple;
+9. stores and returns the terminal response.
+
+Equal or slower scores never replace an earlier best. Hiding a score runs a second transaction that marks it hidden and recomputes the affected player's pointer, restoring the next legitimate score.
+
+### Section 2 — Code Quality
+
+The server contract build reuses engine exports instead of adding a second implementation. Canonical hashing, DTO parsing, public error mapping, and time formatting each live in one pure module. Route handlers remain thin request boundaries.
+
+The existing `chooseBestStats` compares moves and therefore preserves the first 270-move completion. Implementation migrates local storage to `tiles-game-progress-v2`, compares `seconds` first, preserves valid v1 completion data, and adds corruption/migration tests.
+
+No route accepts a caller-controlled Top 10 limit. Public DTOs use explicit domain names and never serialize database rows directly.
+
+### Section 3 — Test Review
+
+```text
+CODE PATHS                                           USER FLOWS
+[+] replay contract build                           [+] Ordinary unranked play
+  ├─ [GAP][UNIT] canonical level hash                  ├─ [★★ TESTED] current play controls
+  ├─ [GAP][UNIT] ruleset changes hash                  └─ [GAP][E2E] disabled/outage regression
+  └─ [GAP][INTEGRATION] browser/server parity
+
+[+] attempt state machine                           [+] Start ranked run
+  ├─ [GAP][UNIT] start/pending/countdown              ├─ [GAP][E2E] success + countdown
+  ├─ [GAP][UNIT] cancel/restart/level change          ├─ [GAP][E2E] slow/lost start response
+  ├─ [GAP][UNIT] remove/undo log                      └─ [GAP][E2E] level switch cancellation
+  └─ [GAP][UNIT] freeze at completion
+
+[+] public/private reads                            [+] View records
+  ├─ [GAP][INTEGRATION] public cache isolation        ├─ [GAP][E2E] desktop disclosure
+  ├─ [GAP][INTEGRATION] private me no-store           ├─ [GAP][E2E] mobile modal/focus
+  └─ [GAP][UNIT] stale merge authority                └─ [GAP][E2E] empty/stale/error/partial
+
+[+] completion RPC                                 [+] Complete ranked run
+  ├─ [GAP][INTEGRATION] legal replay                  ├─ [GAP][E2E] Top 10 + personal rank
+  ├─ [GAP][INTEGRATION] illegal/unknown/undo          ├─ [GAP][E2E] slower/PB outside
+  ├─ [GAP][INTEGRATION] duplicate/lost response       ├─ [GAP][E2E] retry/result recovery
+  ├─ [GAP][INTEGRATION] concurrent PB race            └─ [GAP][E2E] local clear survives rejection
+  └─ [GAP][INTEGRATION] moderation fallback
+
+[+] security boundary                              [+] Rollout/rollback
+  ├─ [GAP][INTEGRATION] direct anon/RLS denied        ├─ [GAP][HOST E2E] read-only phase
+  ├─ [GAP][INTEGRATION] origin/fetch metadata         ├─ [GAP][HOST E2E] writes enabled
+  ├─ [GAP][INTEGRATION] payload/command caps          └─ [GAP][HOST E2E] kill switch
+  └─ [GAP][INTEGRATION] raw errors suppressed
+
+CURRENT COVERAGE: 2 existing smoke/regression flows
+NEW GAPS: 31 paths; 9 unit, 13 integration, 9 E2E/host E2E
+```
+
+Golden streams cover legal completion, blocked removal, unknown tile, Undo, redundant Undo, incomplete run, and ruleset mismatch. They execute against both browser engine and vendored Node kernel.
+
+#### Executable Test Environments
+
+- tiles-game Vitest: engine contract, attempt reducer, client merge, local-storage v2 migration.
+- roadcrosser route tests: Next handlers against local Supabase with migrations applied.
+- Supabase SQL tests: RLS denial, completion transaction, concurrency, ranking, moderation fallback, settings, rate buckets, and query plans.
+- tiles-game component tests: attempt and leaderboard UI states through an HTTP boundary fake.
+- host Playwright: run roadcrosser, sync real static/vendor artifacts, use local Supabase, and exercise iframe plus same-origin routes.
+
+Host E2E is the release gate because the Vite-only server cannot validate production cookies, routing, migrations, or the cross-repo artifact.
+
+### Section 4 — Performance
+
+Public ranking reads only visible best pointers joined to scores and players, orders by `(elapsed_seconds, achieved_at, score_id)`, and limits to ten. Add a partial visible-score ordering index and assert its query plan.
+
+Replay is bounded before execution: body at most 64 KiB, commands at most `min(4 × tile_count, 1,200)`, tile IDs limited to the manifest, and attempt duration 30 minutes. Starts default to five per player per five minutes. A Vercel WAF path rule limits broad bursts; an atomic DB bucket enforces browser and daily-HMAC IP-digest limits.
+
+`pg_cron` removes expired rate buckets daily, deletes rejected or abandoned attempt detail after 30 days, and removes command metadata after 90 days. Immutable scores and minimal completed-attempt audit fields remain while the all-time board exists.
+
+### Security Contract
+
+- Identity cookie: 256-bit opaque token; hash stored in DB; `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`.
+- POST routes: same-origin `Origin` and Fetch Metadata enforcement; JSON only.
+- Validation: strict Zod schemas, pre-parse length check plus body cap, exact allowed keys.
+- Secrets: dedicated server-only Supabase admin client; no service key in the bundle, logs, or public errors.
+- Privacy: logs hash player IDs; IP-derived rate keys use a daily HMAC and expire within 48 hours.
+- Publication: scores below a playtest-configured per-level floor are quarantined before public visibility.
+- Moderation: authenticated operator script lists quarantine, hides/restores score or player, recomputes PB, and toggles reads/writes with an audit reason.
+
+### Failure Modes Registry — Engineering Delta
+
+| Failure | Handling | Test | Visible outcome | Critical gap |
+|---|---|---|---|---:|
+| Server contract missing | roadcrosser build fails | Host build | Old deploy stays live | No |
+| Client/server mismatch | Start rejects before countdown | Contract + E2E | Level not ranked yet | No |
+| Start response late | Client cancels and retries | E2E | Clean retry message | No |
+| Completion response lost | GET result/repeat POST returns terminal response | Integration + E2E | Check result recovers | No |
+| Concurrent PB update | Row lock and single function | DB concurrency | Better tuple wins | No |
+| Public cache private leak | Endpoint split and header test | Integration | Impossible by DTO | No |
+| Settings unavailable | Fail closed for writes | Integration | Unranked play continues | No |
+| Rate bucket unavailable | Fail closed for starts | Integration | Retry later | No |
+| Obvious bot time | Quarantine before query | Integration | Result under review | No |
+| Operator hides PB | Recompute pointer | DB test | Next visible best appears | No |
+| Old cached client | Active-version check | Host E2E | Ranked mode unavailable | No |
+| Cleanup job fails | Metric/log and runbook | Ops check | No player impact | No |
+
+### Worktree Parallelization
+
+| Lane | Modules | Depends on |
+|---|---|---|
+| A — contract | tiles-game engine, levels, build scripts; roadcrosser vendor sync | — |
+| B — database/API | roadcrosser migrations, server modules, routes, operator script | A contract schema |
+| C — client/UI | tiles-game leaderboard, game integration, styles | API DTO contract |
+| D — release | both repos' integration/E2E and rollout docs | A + B + C |
+
+Freeze DTOs and contract artifacts in A. Then run B and C in parallel. Merge both before D. Publish/sync scripts are shared by A and D and must not be edited concurrently.
+
+### Engineering NOT in Scope
+
+- Public SDK or npm package: vendored server artifact is sufficient.
+- Multi-region writes or read replicas: ten rows per level do not justify them.
+- Realtime pushes: explicit refresh and post-completion reload are sufficient.
+- Device attestation, per-run CAPTCHA, or behavioral bot detection: inconsistent with casual trust.
+- Full admin web UI: an authenticated operator script and audit log satisfy launch.
+
+### Engineering Implementation Tasks
+
+- [ ] **ENG-T1 (P1, human: ~1 day / CC: ~1 h)** — Contract — Build and sync the versioned replay kernel, manifest, hashes, and golden parity suite.
+- [ ] **ENG-T2 (P1, human: ~2 days / CC: ~2 h)** — Database — Add schema, transactions, RLS denial, indexes, settings, buckets, and retention.
+- [ ] **ENG-T3 (P1, human: ~1 day / CC: ~1 h)** — API — Implement split routes, opaque identity, strict validation, and stable errors.
+- [ ] **ENG-T4 (P1, human: ~1 day / CC: ~1 h)** — Client — Implement attempt reducer, recovery, fetch adapter, controller integration, and PB v2 migration.
+- [ ] **ENG-T5 (P1, human: ~1 day / CC: ~1 h)** — UI — Implement reviewed responsive and accessible records states.
+- [ ] **ENG-T6 (P1, human: ~1 day / CC: ~1.5 h)** — Verification — Add local Supabase tests and host-level cross-repo Playwright.
+- [ ] **ENG-T7 (P2, human: ~4 h / CC: ~30 min)** — Operations — Document WAF, add operator script, metrics queries, alert/runbook, and staged rollout.
+
+### Engineering Completion Summary
+
+```text
++====================================================================+
+| ENGINEERING PLAN REVIEW — COMPLETION SUMMARY                       |
++====================================================================+
+| Scope challenge        | Cross-repo scope accepted; no new service |
+| Architecture           | 3 blockers resolved                       |
+| Code quality           | shared kernel; local PB fix included      |
+| Test review            | 31 planned gaps mapped                    |
+| Performance            | bounded replay, indexed Top 10, retention |
+| Security               | private server boundary + quarantine      |
+| Failure modes          | 12 deltas, 0 critical gaps                |
+| NOT in scope           | 5 items                                   |
+| What already exists    | 9 reused surfaces                         |
+| Parallelization        | 4 lanes; B + C parallel after A           |
+| Dual voices            | 6/6 confirmed concerns                    |
+| Lake score             | 9/9 complete decisions                    |
 +====================================================================+
 ```
