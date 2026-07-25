@@ -5,6 +5,41 @@ Status: **APPROVED**
 Reviewed: 2026-07-24
 Approved: 2026-07-25
 
+## Execution Status
+
+Implementation mode: `phased-worker` with independent verification,
+requirements-to-evidence review, and an adversarial code-review gate per phase.
+
+| Phase | Goal | Status | Verification evidence |
+|---|---|---|---|
+| 1 | Versioned replay and API protocol contract | Completed | 53 unit, 2 publish-safety, 1 Chromium parity, 8 vendored-contract tests; both independent gates PASS |
+| 2 | Supabase schema, API, security, and operations | In progress | Pending |
+| 3 | Ranked client flow, UI, and accessibility | Pending | Pending |
+| 4 | Local DX, integration/E2E, release, and rollback | Pending | Pending |
+
+Implementation branches:
+
+- `tiles-game`: `feat/all-time-leaderboard`
+- `roadcrosser`: `feat/tiles-game-leaderboard`
+
+The pre-existing dirty `roadcrosser/games/shy-guy-world/**` work is unrelated,
+must remain untouched, and is excluded from every leaderboard commit and review.
+
+### Phase 1 Verification Report
+
+- Canonical gameplay hashing excludes presentation fields and binds each
+  `levelVersionId` to replay-contract version plus sorted gameplay JSON.
+- Browser WebCrypto and the vendored Node kernel pass the same nine golden
+  completion and rejection fixtures.
+- Replay legality and API declarations have independent version/fingerprint
+  compatibility gates, including the first replay-version-bump path.
+- Sync retains versioned artifacts, updates a deterministic current pointer, and
+  refuses incompatible replacement before mutating the published snapshot.
+- The publisher's exact allowlist and path-scoped commit preserve unrelated
+  roadcrosser work and the nested `/games/tiles-game/` asset base.
+- Independent requirements verification: PASS.
+- Independent adversarial code review: PASS with no P1/P2 findings.
+
 ## Goal
 
 Add a public, all-time Top 10 leaderboard to the tile game so a player can compare a completed level against the best server-validated completion times.
@@ -946,7 +981,7 @@ Freeze DTOs and contract artifacts in A. Then run B and C in parallel. Merge bot
 
 ### Engineering Implementation Tasks
 
-- [ ] **ENG-T1 (P1, human: ~1 day / CC: ~1 h)** — Contract — Build and sync the versioned replay kernel, manifest, hashes, and golden parity suite.
+- [x] **ENG-T1 (P1, human: ~1 day / CC: ~1 h)** — Contract — Build and sync the versioned replay kernel, manifest, hashes, and golden parity suite.
 - [ ] **ENG-T2 (P1, human: ~2 days / CC: ~2 h)** — Database — Add schema, transactions, RLS denial, indexes, settings, buckets, and retention.
 - [ ] **ENG-T3 (P1, human: ~1 day / CC: ~1 h)** — API — Implement split routes, opaque identity, strict validation, and stable errors.
 - [ ] **ENG-T4 (P1, human: ~1 day / CC: ~1 h)** — Client — Implement attempt reducer, recovery, fetch adapter, controller integration, and PB v2 migration.
@@ -1209,7 +1244,7 @@ Rollback disables writes, reactivates the previous level version, redeploys the 
 ### DX Implementation Tasks
 
 - [ ] **DX-T1 (P1, human: ~1 day / CC: ~1 h)** — Local stack — Add the canonical guide, committed Supabase local project, safe env example, preflight, and `dev:tiles-leaderboard`.
-- [ ] **DX-T2 (P1, human: ~4 h / CC: ~30 min)** — Protocol — Generate the shared versioned DTO/error artifact and compatibility check.
+- [x] **DX-T2 (P1, human: ~4 h / CC: ~30 min)** — Protocol — Generate the shared versioned DTO/error artifact and compatibility check.
 - [ ] **DX-T3 (P1, human: ~1 day / CC: ~1 h)** — Verification — Add golden smoke, focused commands, host orchestration, and docs-drift CI.
 - [ ] **DX-T4 (P2, human: ~4 h / CC: ~30 min)** — Operations — Add structured debug logs and the exact deploy/rollback runbook.
 

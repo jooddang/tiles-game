@@ -5,11 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev.mjs",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && npm run build:leaderboard-contract",
+    "build:leaderboard-contract": "vite build --config vite.server-contract.config.ts && tsc -p tsconfig.contract.json && node scripts/finalize-leaderboard-contract.mjs",
     "typecheck": "tsc -b",
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
+    "test:publish-safety": "node --test tests/scripts/publishRoadcrosserSafety.test.mjs",
     "test:e2e": "playwright test",
+    "test:e2e:leaderboard-contract": "playwright test --config playwright.contract.config.ts",
     "publish:roadcrosser": "node scripts/publish-roadcrosser.mjs --force"
   },
   "dependencies": {

@@ -1,6 +1,11 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import {
+  PUBLISH_PATHS,
+  findUnrelatedPaths,
+  parsePorcelainV1Z,
+} from "./roadcrosser-publish-safety.mjs";
 
 const force = process.argv.includes("--force");
 const roadcrosserRoot = resolve(process.env.ROADCROSSER_ROOT ?? "../roadcrosser");
@@ -40,7 +45,7 @@ if (roadcrosserBranch !== "master") {
 }
 
 const initialRoadcrosserStatus = getRoadcrosserStatus();
-const initialUnrelatedChanges = initialRoadcrosserStatus.filter(isUnrelatedRoadcrosserChange);
+const initialUnrelatedChanges = findUnrelatedPaths(initialRoadcrosserStatus);
 if (initialUnrelatedChanges.length > 0) {
   printUnrelatedChanges(initialUnrelatedChanges);
   process.exit(1);
@@ -57,7 +62,7 @@ if (status.length === 0) {
   process.exit(0);
 }
 
-const unrelatedChanges = status.filter(isUnrelatedRoadcrosserChange);
+const unrelatedChanges = findUnrelatedPaths(status);
 
 if (unrelatedChanges.length > 0) {
   printUnrelatedChanges(unrelatedChanges);
@@ -66,19 +71,29 @@ if (unrelatedChanges.length > 0) {
 
 maybeRunRoadcrosserBuild();
 
-run("git", ["add", "public/games/tiles-game"], roadcrosserRoot);
-run("git", ["commit", "-m", `Update tiles-game snapshot to ${tilesGameSha}`], roadcrosserRoot);
+run("git", ["add", "--", ...PUBLISH_PATHS], roadcrosserRoot);
+run(
+  "git",
+  [
+    "commit",
+    "--only",
+    "-m",
+    `Update tiles-game snapshot to ${tilesGameSha}`,
+    "--",
+    ...PUBLISH_PATHS,
+  ],
+  roadcrosserRoot,
+);
 run("git", ["push", "origin", "master"], roadcrosserRoot);
 
 function getRoadcrosserStatus() {
-  return runCapture("git", ["status", "--porcelain"], roadcrosserRoot)
-    .split("\n")
-    .filter(Boolean);
-}
-
-function isUnrelatedRoadcrosserChange(line) {
-  const filePath = line.slice(3);
-  return !filePath.startsWith("public/games/tiles-game/");
+  return parsePorcelainV1Z(
+    runCaptureRaw(
+      "git",
+      ["status", "--porcelain=v1", "-z", "--untracked-files=all"],
+      roadcrosserRoot,
+    ),
+  );
 }
 
 function printUnrelatedChanges(unrelatedChanges) {
@@ -129,4 +144,16 @@ function runCapture(command, args, cwd) {
   }
 
   return result.stdout.trim();
+}
+
+function runCaptureRaw(command, args, cwd) {
+  const result = spawnSync(command, args, { cwd });
+
+  if (result.status !== 0) {
+    throw new Error(
+      `${command} ${args.join(" ")} failed in ${cwd}: ${result.stderr.toString()}`,
+    );
+  }
+
+  return result.stdout;
 }
