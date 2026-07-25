@@ -25,6 +25,7 @@ export type TileViewProps = {
   readonly exitXUnits?: number;
   readonly exitYUnits?: number;
   readonly onPlay: (tileId: string) => void;
+  readonly isDisabled?: boolean;
 };
 
 export function TileView({
@@ -37,6 +38,7 @@ export function TileView({
   exitXUnits = 0,
   exitYUnits = 0,
   onPlay,
+  isDisabled = false,
 }: TileViewProps) {
   const tileStyle: TileStyle = {
     left: `calc(${leftUnits} * var(--hex-unit))`,
@@ -55,7 +57,7 @@ export function TileView({
       data-exiting={isExiting ? "true" : undefined}
       style={tileStyle}
       type="button"
-      disabled={isExiting}
+      disabled={isExiting || isDisabled}
       aria-label={`Tile ${tile.id} arrow ${tile.direction}`}
       onClick={() => onPlay(tile.id)}
     >

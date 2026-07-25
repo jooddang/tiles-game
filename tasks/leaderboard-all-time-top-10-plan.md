@@ -14,8 +14,8 @@ requirements-to-evidence review, and an adversarial code-review gate per phase.
 |---|---|---|---|
 | 1 | Versioned replay and API protocol contract | Completed | 53 unit, 2 publish-safety, 1 Chromium parity, 8 vendored-contract tests; both independent gates PASS |
 | 2 | Supabase schema, API, security, and operations | Completed | 25 unit/service/route, 8 static safety, 43 pgTAP, real DB concurrency, repeatable five-route HTTP, 9 vendored-contract tests, production Next build; both independent gates PASS |
-| 3 | Ranked client flow, UI, and accessibility | In progress | Pending |
-| 4 | Local DX, integration/E2E, release, and rollback | Pending | Pending |
+| 3 | Ranked client flow, UI, and accessibility | Completed | 102 unit/component, 30 browser E2E, five target viewports in both Playwright projects, production build; both independent gates PASS |
+| 4 | Local DX, integration/E2E, release, and rollback | In progress | Pending |
 
 Implementation branches:
 
@@ -58,6 +58,24 @@ must remain untouched, and is excluded from every leaderboard commit and review.
 - The production Next build, 25 focused unit/service/route tests, 8 static
   safety tests, 9 vendored-contract tests, and the tiles-game 53-test/build
   suite pass.
+- Independent requirements verification: PASS.
+- Independent adversarial code review: PASS with no P1/P2 findings.
+
+### Phase 3 Verification Report
+
+- The ranked attempt reducer owns countdown, server-time play, cancellation,
+  command recovery, response-loss recovery, terminal expiry, and level-bound
+  request races without blocking ordinary unranked play.
+- Completion POST results remain authoritative for the personal best while a
+  public Top 10 that cannot account for concurrent entrants stays explicitly
+  stale until a matching server read arrives.
+- Desktop records use a bounded inline disclosure; mobile records use a portal
+  sheet with inert background, focus trapping, Escape/Close restoration, and a
+  semantic table.
+- Five viewport checks cover 320x568, 390x844, 760x800, 1280x800, and short
+  landscape. The full browser suite passes in both desktop and mobile projects.
+- The 102-test unit/component suite, typecheck, lint, production browser build,
+  replay-contract build, 30 browser E2E tests, and diff safety check pass.
 - Independent requirements verification: PASS.
 - Independent adversarial code review: PASS with no P1/P2 findings.
 
@@ -655,10 +673,10 @@ Viewport acceptance checks cover 320×568, 390×844, 760×800, 1280×800, and sh
 
 ### Design Implementation Tasks
 
-- [ ] **DES-T1 (P1, human: ~1 day / CC: ~1 h)** — Ranked flow — Implement and test the explicit attempt state machine and completion hierarchy.
-- [ ] **DES-T2 (P1, human: ~1 day / CC: ~1 h)** — Responsive UI — Build desktop disclosure and accessible mobile sheet from one records component.
-- [ ] **DES-T3 (P1, human: ~4 h / CC: ~30 min)** — Accessibility — Separate live regions, modal focus management, 44px controls, reduced motion, and semantic table.
-- [ ] **DES-T4 (P2, human: ~2 h / CC: ~20 min)** — Visual QA — Verify hierarchy and overflow at all specified viewports.
+- [x] **DES-T1 (P1, human: ~1 day / CC: ~1 h)** — Ranked flow — Implement and test the explicit attempt state machine and completion hierarchy.
+- [x] **DES-T2 (P1, human: ~1 day / CC: ~1 h)** — Responsive UI — Build desktop disclosure and accessible mobile sheet from one records component.
+- [x] **DES-T3 (P1, human: ~4 h / CC: ~30 min)** — Accessibility — Separate live regions, modal focus management, 44px controls, reduced motion, and semantic table.
+- [x] **DES-T4 (P2, human: ~2 h / CC: ~20 min)** — Visual QA — Verify hierarchy and overflow at all specified viewports.
 
 ### Design Completion Summary
 
@@ -1005,8 +1023,8 @@ Freeze DTOs and contract artifacts in A. Then run B and C in parallel. Merge bot
 - [x] **ENG-T1 (P1, human: ~1 day / CC: ~1 h)** — Contract — Build and sync the versioned replay kernel, manifest, hashes, and golden parity suite.
 - [x] **ENG-T2 (P1, human: ~2 days / CC: ~2 h)** — Database — Add schema, transactions, RLS denial, indexes, settings, buckets, and retention.
 - [x] **ENG-T3 (P1, human: ~1 day / CC: ~1 h)** — API — Implement split routes, opaque identity, strict validation, and stable errors.
-- [ ] **ENG-T4 (P1, human: ~1 day / CC: ~1 h)** — Client — Implement attempt reducer, recovery, fetch adapter, controller integration, and PB v2 migration.
-- [ ] **ENG-T5 (P1, human: ~1 day / CC: ~1 h)** — UI — Implement reviewed responsive and accessible records states.
+- [x] **ENG-T4 (P1, human: ~1 day / CC: ~1 h)** — Client — Implement attempt reducer, recovery, fetch adapter, controller integration, and PB v2 migration.
+- [x] **ENG-T5 (P1, human: ~1 day / CC: ~1 h)** — UI — Implement reviewed responsive and accessible records states.
 - [ ] **ENG-T6 (P1, human: ~1 day / CC: ~1.5 h)** — Verification — Add local Supabase tests and host-level cross-repo Playwright.
 - [ ] **ENG-T7 (P2, human: ~4 h / CC: ~30 min)** — Operations — Document WAF, add operator script, metrics queries, alert/runbook, and staged rollout.
 

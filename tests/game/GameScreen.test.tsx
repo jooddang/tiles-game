@@ -1,7 +1,10 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LevelDefinition } from "../../src/engine";
 import { GameScreen } from "../../src/game/GameScreen";
+import { saveAttemptSession } from "../../src/leaderboard/attemptSession";
+import type { LeaderboardClient } from "../../src/leaderboard/leaderboardClient";
+import { levelVersionId } from "../../src/leaderboard/replayContract";
 
 const testLevels: readonly LevelDefinition[] = [
   {
@@ -29,6 +32,7 @@ const testLevels: readonly LevelDefinition[] = [
 describe("GameScreen", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    window.sessionStorage.clear();
     vi.useRealTimers();
   });
 
@@ -121,4 +125,219 @@ describe("GameScreen", () => {
     expect(screen.getByRole("heading", { name: "Test Blocked" })).toBeInTheDocument();
     expect(screen.getByTestId("move-count")).toHaveTextContent("0");
   });
+
+  it("ranked_flow_logs_only_effective_commands_and_submits_completion", async () => {
+    const client = createLeaderboardClientFake();
+    render(
+      <GameScreen
+        levels={testLevels}
+        leaderboardEnabled={true}
+        leaderboardClient={client}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Start ranked run" }),
+      ).toBeEnabled(),
+    );
+    vi.useFakeTimers();
+    fireEvent.click(screen.getByRole("button", { name: "Start ranked run" }));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(
+      screen.getByRole("button", { name: "Cancel ranked run" }),
+    ).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(4_100);
+      await Promise.resolve();
+    });
+    expect(screen.getByText(/Server timing is active/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Tile test-a arrow up/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    fireEvent.click(screen.getByRole("button", { name: /Tile test-a arrow up/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Tile test-b arrow up/i }));
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(client.completeAttempt).toHaveBeenCalledWith(
+      "123e4567-e89b-42d3-a456-426614174000",
+      {
+        commandLog: [
+          { type: "remove", tileId: "test-a" },
+          { type: "undo" },
+          { type: "remove", tileId: "test-a" },
+          { type: "remove", tileId: "test-b" },
+        ],
+      },
+      expect.any(AbortSignal),
+    );
+    expect(screen.getByText(/#1 · New personal best/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    expect(screen.getByLabelText(/pick level/i)).toBeDisabled();
+    expect(screen.getByRole("button", { name: "View records" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "View records" }));
+    expect(screen.getByText(/Your best #1/)).toBeInTheDocument();
+    expect(screen.getByText(/Couldn’t refresh/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("table", { name: "Server-validated all-time Top 10" }),
+    ).not.toBeInTheDocument();
+
+    const storedProgress = JSON.parse(
+      window.localStorage.getItem("tiles-game-progress-v2") ?? "{}",
+    ) as {
+      bestStatsByLevelId?: Record<string, { seconds: number }>;
+    };
+    expect(storedProgress.bestStatsByLevelId?.["test-complete"]?.seconds).toBe(0);
+
+    fireEvent.keyDown(window, { key: "r" });
+    expect(screen.getByText("Level clear")).toBeInTheDocument();
+  });
+
+  it("level_switch_closes_records_before_the_previous_board_can_flash", async () => {
+    let leaderboardReadCount = 0;
+    const client = {
+      ...createLeaderboardClientFake(),
+      getLeaderboard: vi.fn().mockImplementation((levelVersionId: string) => {
+        leaderboardReadCount += 1;
+        return Promise.resolve({
+          levelVersionId,
+          entries: [
+            {
+              scoreId: `score-${leaderboardReadCount}`,
+              rank: 1,
+              displayName:
+                leaderboardReadCount === 1 ? "Previous Level Fox" : "Next Level Otter",
+              elapsedSeconds: 18,
+              achievedAt: "2026-07-25T00:00:00.000Z",
+            },
+          ],
+        });
+      }),
+    } as LeaderboardClient;
+    render(
+      <GameScreen
+        levels={testLevels}
+        leaderboardEnabled={true}
+        leaderboardClient={client}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Records" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Records" }));
+    await waitFor(() =>
+      expect(screen.getByText("Previous Level Fox")).toBeInTheDocument(),
+    );
+
+    fireEvent.change(screen.getByLabelText(/pick level/i), {
+      target: { value: "1" },
+    });
+
+    expect(screen.queryByText("Previous Level Fox")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Records" })).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("Swift Fox 42")).toBeInTheDocument(),
+    );
+  });
+
+  it("expired_offline_recovery_restores_commands_and_locks_the_doomed_run", async () => {
+    const versionId = await levelVersionId(testLevels[0]);
+    saveAttemptSession({
+      attempt: {
+        attemptId: "123e4567-e89b-42d3-a456-426614174000",
+        apiProtocolVersion: 2,
+        levelVersionId: versionId,
+        replayContractVersion: 1,
+        startsAt: "2020-07-25T12:00:00.000Z",
+        expiresAt: "2020-07-25T12:30:00.000Z",
+        displayName: "Swift Fox 42",
+      },
+      commandLog: [{ type: "remove", tileId: "test-a" }],
+    });
+    const client = {
+      ...createLeaderboardClientFake(),
+      getAttempt: vi.fn().mockRejectedValue(new TypeError("offline")),
+    } as LeaderboardClient;
+
+    render(
+      <GameScreen
+        levels={testLevels}
+        leaderboardEnabled={true}
+        leaderboardClient={client}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Check again" })).toBeEnabled(),
+    );
+    expect(screen.getByTestId("move-count")).toHaveTextContent("1");
+    expect(
+      screen.getByRole("button", { name: /Tile test-b arrow up/i }),
+    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeDisabled();
+    expect(screen.getByLabelText(/pick level/i)).toBeDisabled();
+    expect(window.sessionStorage.length).toBe(1);
+  });
 });
+
+function createLeaderboardClientFake(): LeaderboardClient {
+  let requestedLevel = `sha256:${"a".repeat(64)}`;
+  return {
+    getLeaderboard: vi.fn().mockImplementation((levelVersionId: string) => {
+      requestedLevel = levelVersionId;
+      return Promise.resolve({
+        levelVersionId,
+        entries: [],
+      });
+    }),
+    getPersonalBest: vi.fn().mockImplementation((levelVersionId: string) => {
+      requestedLevel = levelVersionId;
+      return Promise.resolve({
+        levelVersionId,
+        displayName: "Swift Fox 42",
+        personalBest: null,
+      });
+    }),
+    startAttempt: vi.fn().mockImplementation((levelVersionId: string) => {
+      requestedLevel = levelVersionId;
+      return Promise.resolve({
+        attemptId: "123e4567-e89b-42d3-a456-426614174000",
+        apiProtocolVersion: 2,
+        levelVersionId,
+        replayContractVersion: 1,
+        startsAt: new Date(Date.now() + 4_000).toISOString(),
+        expiresAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+        displayName: "Swift Fox 42",
+      });
+    }),
+    getAttempt: vi.fn(),
+    completeAttempt: vi.fn().mockImplementation(() => Promise.resolve({
+      status: "published",
+      submittedScoreId: "score-1",
+      levelVersionId: requestedLevel,
+      elapsedSeconds: 18,
+      isPersonalBest: true,
+      personalBest: {
+        scoreId: "score-1",
+        elapsedSeconds: 18,
+        rank: 1,
+        isTopTen: true,
+      },
+    })),
+  };
+}

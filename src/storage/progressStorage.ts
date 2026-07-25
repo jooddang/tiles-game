@@ -9,7 +9,8 @@ export type StoredProgress = {
   readonly bestStatsByLevelId: Readonly<Record<string, LevelStats>>;
 };
 
-const STORAGE_KEY = "tiles-game-progress-v1";
+const STORAGE_KEY = "tiles-game-progress-v2";
+const LEGACY_STORAGE_KEY = "tiles-game-progress-v1";
 
 export const emptyProgress: StoredProgress = {
   completedLevelIds: [],
@@ -22,13 +23,23 @@ export function loadProgress(storage: Storage | undefined = getBrowserStorage())
   }
 
   try {
-    const rawProgress = storage.getItem(STORAGE_KEY);
+    const currentProgress = storage.getItem(STORAGE_KEY);
+    const legacyProgress = storage.getItem(LEGACY_STORAGE_KEY);
+    const rawProgress = currentProgress ?? legacyProgress;
     if (!rawProgress) {
       return emptyProgress;
     }
 
     const parsedProgress = JSON.parse(rawProgress) as Partial<StoredProgress>;
-    return normalizeProgress(parsedProgress);
+    const normalized = normalizeProgress(parsedProgress);
+    if (!currentProgress && legacyProgress) {
+      try {
+        storage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+      } catch {
+        // Valid legacy progress remains usable when best-effort migration is blocked.
+      }
+    }
+    return normalized;
   } catch {
     return emptyProgress;
   }
@@ -48,6 +59,25 @@ export function saveProgress(
   } catch {
     return false;
   }
+}
+
+export function chooseBestStats(
+  existingStats: LevelStats | undefined,
+  candidateStats: LevelStats,
+): LevelStats {
+  if (!existingStats) {
+    return candidateStats;
+  }
+
+  if (candidateStats.seconds !== existingStats.seconds) {
+    return candidateStats.seconds < existingStats.seconds
+      ? candidateStats
+      : existingStats;
+  }
+
+  return candidateStats.moves < existingStats.moves
+    ? candidateStats
+    : existingStats;
 }
 
 function normalizeProgress(progress: Partial<StoredProgress>): StoredProgress {
@@ -79,7 +109,14 @@ function normalizeStats(
     }
 
     const candidate = stats as Partial<LevelStats>;
-    if (typeof candidate.moves !== "number" || typeof candidate.seconds !== "number") {
+    if (
+      typeof candidate.moves !== "number" ||
+      !Number.isFinite(candidate.moves) ||
+      candidate.moves < 0 ||
+      typeof candidate.seconds !== "number" ||
+      !Number.isFinite(candidate.seconds) ||
+      candidate.seconds < 0
+    ) {
       continue;
     }
 

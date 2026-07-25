@@ -9,10 +9,12 @@ import {
   type Tile,
 } from "../engine";
 import { levelManifest } from "../levels/manifest";
+import type { ReplayCommand } from "../leaderboard/protocol";
 import {
   emptyProgress,
   loadProgress,
   saveProgress,
+  chooseBestStats,
   type LevelStats,
   type StoredProgress,
 } from "../storage/progressStorage";
@@ -41,12 +43,25 @@ export type GameController = {
   readonly canUndo: boolean;
   readonly canGoPrevious: boolean;
   readonly canGoNext: boolean;
-  readonly playTile: (tileId: string) => void;
-  readonly undo: () => void;
+  readonly playTile: (
+    tileId: string,
+    completionSeconds?: number,
+  ) => GameCommandOutcome | undefined;
+  readonly undo: () => GameCommandOutcome | undefined;
   readonly restart: () => void;
   readonly goToLevel: (levelIndex: number) => void;
   readonly goNextLevel: () => void;
   readonly goPreviousLevel: () => void;
+  readonly restoreCommandLog: (
+    commands: readonly ReplayCommand[],
+  ) => "playing" | "complete" | false;
+};
+
+export type GameCommandOutcome = {
+  readonly command:
+    | { readonly type: "remove"; readonly tileId: string }
+    | { readonly type: "undo" };
+  readonly isComplete: boolean;
 };
 
 export function useGameController(
@@ -104,7 +119,7 @@ export function useGameController(
     persist({ ...progress, currentLevelId: nextLevel.id });
   }
 
-  function playTile(tileId: string) {
+  function playTile(tileId: string, completionSeconds = elapsedSeconds) {
     const selectedTile = gameState.remainingTiles.find((tile) => tile.id === tileId);
     const move = applyMove(tileId, gameState);
 
@@ -113,12 +128,12 @@ export function useGameController(
         tileId,
         blockerIds: move.blockers.map((tile) => tile.id),
       });
-      return;
+      return undefined;
     }
 
     if (move.type === "not_found") {
       setBlockedFeedback(undefined);
-      return;
+      return undefined;
     }
 
     setGameState(move.state);
@@ -128,15 +143,28 @@ export function useGameController(
     }
 
     if (move.state.status === "complete") {
-      const stats = { moves: move.state.moveCount, seconds: elapsedSeconds };
+      const stats = { moves: move.state.moveCount, seconds: completionSeconds };
       persist(markLevelComplete(progress, currentLevel.id, stats));
     }
+
+    return {
+      command: { type: "remove", tileId },
+      isComplete: move.state.status === "complete",
+    } satisfies GameCommandOutcome;
   }
 
   function undo() {
-    setGameState((state) => undoMove(state));
+    const nextState = undoMove(gameState);
+    if (nextState === gameState) {
+      return undefined;
+    }
+    setGameState(nextState);
     setBlockedFeedback(undefined);
     clearExitingTiles();
+    return {
+      command: { type: "undo" },
+      isComplete: false,
+    } satisfies GameCommandOutcome;
   }
 
   function restart() {
@@ -174,7 +202,33 @@ export function useGameController(
         resetToLevel(currentLevelIndex - 1);
       }
     },
+    restoreCommandLog,
   };
+
+  function restoreCommandLog(
+    commands: readonly ReplayCommand[],
+  ): "playing" | "complete" | false {
+    let restoredState = createInitialGameState(currentLevel);
+    for (const command of commands) {
+      if (command.type === "undo") {
+        const nextState = undoMove(restoredState);
+        if (nextState === restoredState) {
+          return false;
+        }
+        restoredState = nextState;
+        continue;
+      }
+      const move = applyMove(command.tileId, restoredState);
+      if (move.type !== "removed") {
+        return false;
+      }
+      restoredState = move.state;
+    }
+    setGameState(restoredState);
+    setBlockedFeedback(undefined);
+    clearExitingTiles();
+    return restoredState.status;
+  }
 
   function queueExitingTile(tile: Tile) {
     setExitingTiles((tiles) => [...tiles, { tile }]);
@@ -223,15 +277,4 @@ function markLevelComplete(
       [levelId]: chooseBestStats(progress.bestStatsByLevelId[levelId], stats),
     },
   };
-}
-
-function chooseBestStats(
-  existingStats: LevelStats | undefined,
-  candidateStats: LevelStats,
-): LevelStats {
-  if (!existingStats) {
-    return candidateStats;
-  }
-
-  return candidateStats.moves < existingStats.moves ? candidateStats : existingStats;
 }

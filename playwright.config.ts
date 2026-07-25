@@ -5,12 +5,13 @@ export default defineConfig({
   fullyParallel: true,
   reporter: "list",
   use: {
-    baseURL: "http://127.0.0.1:5173",
+    baseURL: "http://127.0.0.1:5174",
     trace: "on-first-retry",
   },
   webServer: {
-    command: "npm run dev -- --host 127.0.0.1",
-    url: "http://127.0.0.1:5173",
+    command:
+      "VITE_TILES_LEADERBOARD_ENABLED=true npx vite --host 127.0.0.1 --port 5174",
+    url: "http://127.0.0.1:5174",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

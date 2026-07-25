@@ -12,6 +12,7 @@ export type BoardViewProps = {
   readonly exitingTiles: readonly ExitingTile[];
   readonly blockedFeedback?: BlockedFeedback;
   readonly onPlayTile: (tileId: string) => void;
+  readonly isInputLocked?: boolean;
 };
 
 export function BoardView({
@@ -19,6 +20,7 @@ export function BoardView({
   exitingTiles,
   blockedFeedback,
   onPlayTile,
+  isInputLocked = false,
 }: BoardViewProps) {
   const blockerIds = new Set(blockedFeedback?.blockerIds ?? []);
   const boardSize = getHexBoardSize(gameState.level.width, gameState.level.height);
@@ -45,6 +47,7 @@ export function BoardView({
               leftUnits={position.x}
               topUnits={position.y}
               onPlay={onPlayTile}
+              isDisabled={isInputLocked}
             />
           );
         })}
@@ -64,6 +67,7 @@ export function BoardView({
               exitXUnits={exitRay.x * 12}
               exitYUnits={exitRay.y * 12}
               onPlay={onPlayTile}
+              isDisabled={true}
             />
           );
         })}

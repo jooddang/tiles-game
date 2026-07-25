@@ -1,10 +1,17 @@
+import type { ReactNode } from "react";
 import type { GameController } from "./useGameController";
 
 export type GameHudProps = {
   readonly controller: GameController;
+  readonly children?: ReactNode;
+  readonly isInteractionLocked?: boolean;
 };
 
-export function GameHud({ controller }: GameHudProps) {
+export function GameHud({
+  controller,
+  children,
+  isInteractionLocked = false,
+}: GameHudProps) {
   const completedCount = controller.progress.completedLevelIds.length;
 
   return (
@@ -33,11 +40,16 @@ export function GameHud({ controller }: GameHudProps) {
           type="button"
           className="game-button"
           onClick={controller.undo}
-          disabled={!controller.canUndo}
+          disabled={isInteractionLocked || !controller.canUndo}
         >
           Undo
         </button>
-        <button type="button" className="game-button" onClick={controller.restart}>
+        <button
+          type="button"
+          className="game-button"
+          onClick={controller.restart}
+          disabled={isInteractionLocked}
+        >
           Retry
         </button>
       </div>
@@ -47,7 +59,7 @@ export function GameHud({ controller }: GameHudProps) {
           type="button"
           className="game-button"
           onClick={controller.goPreviousLevel}
-          disabled={!controller.canGoPrevious}
+          disabled={isInteractionLocked || !controller.canGoPrevious}
         >
           Prev
         </button>
@@ -55,7 +67,7 @@ export function GameHud({ controller }: GameHudProps) {
           type="button"
           className="game-button"
           onClick={controller.goNextLevel}
-          disabled={!controller.canGoNext}
+          disabled={isInteractionLocked || !controller.canGoNext}
         >
           Next
         </button>
@@ -65,6 +77,7 @@ export function GameHud({ controller }: GameHudProps) {
         <span>Pick level</span>
         <select
           value={controller.currentLevelIndex}
+          disabled={isInteractionLocked}
           onChange={(event) => controller.goToLevel(Number(event.target.value))}
         >
           {controller.levels.map((level, index) => (
@@ -74,6 +87,8 @@ export function GameHud({ controller }: GameHudProps) {
           ))}
         </select>
       </label>
+
+      {children}
 
       {!controller.storageAvailable ? (
         <p className="notice" role="status">
