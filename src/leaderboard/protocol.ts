@@ -1,5 +1,5 @@
 export const REPLAY_CONTRACT_VERSION = 1 as const;
-export const API_PROTOCOL_VERSION = 1 as const;
+export const API_PROTOCOL_VERSION = 2 as const;
 
 export const PUBLIC_ERROR_CODES = [
   "LEADERBOARD_UNAVAILABLE",
@@ -67,7 +67,7 @@ export type AttemptStartResponse = {
   readonly attemptId: string;
   readonly apiProtocolVersion: typeof API_PROTOCOL_VERSION;
   readonly levelVersionId: string;
-  readonly replayContractVersion: typeof REPLAY_CONTRACT_VERSION;
+  readonly replayContractVersion: number;
   readonly startsAt: string;
   readonly expiresAt: string;
   readonly displayName: string;

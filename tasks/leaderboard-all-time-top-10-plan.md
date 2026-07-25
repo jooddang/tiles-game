@@ -13,8 +13,8 @@ requirements-to-evidence review, and an adversarial code-review gate per phase.
 | Phase | Goal | Status | Verification evidence |
 |---|---|---|---|
 | 1 | Versioned replay and API protocol contract | Completed | 53 unit, 2 publish-safety, 1 Chromium parity, 8 vendored-contract tests; both independent gates PASS |
-| 2 | Supabase schema, API, security, and operations | In progress | Pending |
-| 3 | Ranked client flow, UI, and accessibility | Pending | Pending |
+| 2 | Supabase schema, API, security, and operations | Completed | 25 unit/service/route, 8 static safety, 43 pgTAP, real DB concurrency, repeatable five-route HTTP, 9 vendored-contract tests, production Next build; both independent gates PASS |
+| 3 | Ranked client flow, UI, and accessibility | In progress | Pending |
 | 4 | Local DX, integration/E2E, release, and rollback | Pending | Pending |
 
 Implementation branches:
@@ -37,6 +37,27 @@ must remain untouched, and is excluded from every leaderboard commit and review.
   refuses incompatible replacement before mutating the published snapshot.
 - The publisher's exact allowlist and path-scoped commit preserve unrelated
   roadcrosser work and the nested `/games/tiles-game/` asset base.
+- Independent requirements verification: PASS.
+- Independent adversarial code review: PASS with no P1/P2 findings.
+
+### Phase 2 Verification Report
+
+- Isolated `tiles_*` tables, private security-definer transactions, RLS denial,
+  deterministic Top 10/PB ranking, immutable levels, retention, moderation,
+  durable rate buckets, and transactional settings are covered by 43 pgTAP
+  assertions.
+- Real concurrent PostgreSQL sessions prove faster personal-best preservation
+  and rank-lock serialization.
+- Five Next routes pass an actual same-origin HTTP flow against local Supabase,
+  including HttpOnly identity rotation, cache policy, recovery, rejection, and
+  cross-origin denial. The test owns and removes its exact local state.
+- The service awaits the async vendored replay kernel, supports retained replay
+  versions during recovery, and rejects protocol drift before accepting writes.
+- Atomic level activation, operator controls, structured privacy-safe telemetry,
+  and anomaly outcomes are executable and regression-tested.
+- The production Next build, 25 focused unit/service/route tests, 8 static
+  safety tests, 9 vendored-contract tests, and the tiles-game 53-test/build
+  suite pass.
 - Independent requirements verification: PASS.
 - Independent adversarial code review: PASS with no P1/P2 findings.
 
@@ -982,8 +1003,8 @@ Freeze DTOs and contract artifacts in A. Then run B and C in parallel. Merge bot
 ### Engineering Implementation Tasks
 
 - [x] **ENG-T1 (P1, human: ~1 day / CC: ~1 h)** — Contract — Build and sync the versioned replay kernel, manifest, hashes, and golden parity suite.
-- [ ] **ENG-T2 (P1, human: ~2 days / CC: ~2 h)** — Database — Add schema, transactions, RLS denial, indexes, settings, buckets, and retention.
-- [ ] **ENG-T3 (P1, human: ~1 day / CC: ~1 h)** — API — Implement split routes, opaque identity, strict validation, and stable errors.
+- [x] **ENG-T2 (P1, human: ~2 days / CC: ~2 h)** — Database — Add schema, transactions, RLS denial, indexes, settings, buckets, and retention.
+- [x] **ENG-T3 (P1, human: ~1 day / CC: ~1 h)** — API — Implement split routes, opaque identity, strict validation, and stable errors.
 - [ ] **ENG-T4 (P1, human: ~1 day / CC: ~1 h)** — Client — Implement attempt reducer, recovery, fetch adapter, controller integration, and PB v2 migration.
 - [ ] **ENG-T5 (P1, human: ~1 day / CC: ~1 h)** — UI — Implement reviewed responsive and accessible records states.
 - [ ] **ENG-T6 (P1, human: ~1 day / CC: ~1.5 h)** — Verification — Add local Supabase tests and host-level cross-repo Playwright.
