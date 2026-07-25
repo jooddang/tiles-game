@@ -1,12 +1,12 @@
-name: Leaderboard cross-repository verification
+name: Leaderboard verification
 
 on:
   pull_request:
     paths:
       - ".github/workflows/leaderboard-contract.yml"
-      - ".github/roadcrosser-ref"
       - "package-lock.json"
       - "package.json"
+      - "playwright*.ts"
       - "scripts/**"
       - "src/**"
       - "tests/**"
@@ -15,18 +15,14 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/leaderboard-contract.yml"
-      - ".github/roadcrosser-ref"
       - "package-lock.json"
       - "package.json"
+      - "playwright*.ts"
       - "scripts/**"
       - "src/**"
       - "tests/**"
       - "vite*.ts"
   workflow_dispatch:
-    inputs:
-      roadcrosser_ref:
-        description: roadcrosser branch
-        required: false
 
 permissions:
   contents: read
@@ -36,64 +32,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  full-stack:
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Check out tiles-game
         uses: actions/checkout@v6
-        with:
-          path: tiles-game
-
-      - name: Resolve roadcrosser ref
-        id: roadcrosser-ref
-        env:
-          INPUT_REF: ${{ inputs.roadcrosser_ref }}
-        run: |
-          CANDIDATE_REF="${INPUT_REF:-$(cat tiles-game/.github/roadcrosser-ref)}"
-          git check-ref-format --branch "$CANDIDATE_REF"
-          if git ls-remote --exit-code https://github.com/jooddang/roadcrosser.git "refs/heads/$CANDIDATE_REF" >/dev/null 2>&1; then
-            echo "ref=$CANDIDATE_REF" >> "$GITHUB_OUTPUT"
-          elif [ -n "$INPUT_REF" ]; then
-            echo "Explicit roadcrosser branch does not exist: $INPUT_REF" >&2
-            exit 1
-          else
-            echo "ref=main" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Check out roadcrosser
-        uses: actions/checkout@v6
-        with:
-          repository: jooddang/roadcrosser
-          ref: ${{ steps.roadcrosser-ref.outputs.ref }}
-          path: roadcrosser
 
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
           node-version: 22.12.0
+          cache: npm
 
-      - name: Install roadcrosser dependencies
-        working-directory: roadcrosser
+      - name: Install dependencies
         run: npm ci
 
-      - name: Install tiles-game dependencies
-        working-directory: tiles-game
-        run: npm ci
+      - name: Run unit tests
+        run: npm test
+
+      - name: Run production build
+        run: npm run build
 
       - name: Install Chromium
-        working-directory: roadcrosser
         run: npx playwright install --with-deps chromium
 
-      - name: Run documented smoke
-        working-directory: roadcrosser
-        run: npm run smoke:tiles-leaderboard
-
-      - name: Run documented verification
-        working-directory: roadcrosser
-        run: npm run verify:tiles-leaderboard
-
-      - name: Stop local Supabase
-        if: always()
-        working-directory: roadcrosser
-        run: npm run stop:tiles-leaderboard
+      - name: Run browser tests
+        run: npm run test:e2e

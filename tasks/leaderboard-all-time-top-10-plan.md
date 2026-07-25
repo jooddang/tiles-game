@@ -90,8 +90,11 @@ must remain untouched, and is excluded from every leaderboard commit and review.
 - Cleanup independently attempts level, settings metadata, and audit restore;
   normal SIGINT/SIGTERM unwinds through the same path. Focused failure tests
   cover aggregation and deferred interruption.
-- Both repositories run the documented cross-repository smoke and verify gates
-  from explicit paired branch refs, with safe stale-ref fallback after merge.
+- Roadcrosser CI runs the documented cross-repository smoke and verify gates
+  against an explicit Tile branch ref. Tile CI runs its self-contained
+  unit/build/browser gates, and its guarded pre-push hook verifies the synced
+  Roadcrosser snapshot without granting a public repository access to private
+  Roadcrosser source.
 - Warm local TTHW measured 18.4 seconds for smoke; full verification measured
   21.3 seconds. Typecheck, production build, and post-run zero-residue checks
   pass.
