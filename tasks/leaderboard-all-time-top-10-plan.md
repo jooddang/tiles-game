@@ -398,6 +398,14 @@ error threshold crossed?
 | 22 | Eng | Remove background-tab invalidation as trust evidence | Auto-decided reversal | Pragmatic | It penalizes honest users and modified clients can suppress it | Terminal visibility failure |
 | 23 | Eng | Fix local best selection to compare elapsed time | Mechanical | Correctness | Existing move-count comparison keeps the first 270-move result | Preserve existing comparator |
 | 24 | Eng | Use DB-backed runtime flags and rate buckets | Auto-decided | Completeness | Serverless memory and build-time flags cannot provide runtime control | In-memory limits |
+| 25 | DX | Make roadcrosser the canonical full-stack local entry point | Auto-decided | Simpler over clever | Same-origin cookies, routes, DB, iframe, and replay cannot be proven by Vite alone | Two equal onboarding paths |
+| 26 | DX | Target a five-minute warm TTHW with one dev command | Auto-decided | Bias toward action | A new maintainer should see the real feature before learning every subsystem | Manual multi-terminal setup |
+| 27 | DX | Commit Supabase local config and deterministic seed | Mechanical | Completeness | Migrations are not reproducible without a versioned local project contract | Dashboard-created local state |
+| 28 | DX | Use one versioned protocol artifact across both repos | Auto-decided | DRY | DTO and error drift otherwise defeats replay compatibility | Hand-maintained duplicate types |
+| 29 | DX | Standardize public errors and structured request logs | Mechanical | Fight uncertainty | Every failure must state problem, cause, fix, and correlation ID | Route-specific error shapes |
+| 30 | DX | Add golden-replay smoke instead of requiring a 270-tile manual clear | Auto-decided | Pragmatic | The full ranked lifecycle must fit inside the onboarding budget | Manual production-level smoke |
+| 31 | DX | Allow only documented local path and port overrides | Taste | Opinionated defaults | `../tiles-game` and same-origin production are the golden path; local environments still need escape hatches | Fully configurable production origins |
+| 32 | DX | Keep docs executable by running their commands in CI | Auto-decided | Completeness | A copy-paste guide that drifts is worse than no quick start | Documentation-only promises |
 
 ## Phase 2 — Design Review
 
@@ -965,3 +973,266 @@ Freeze DTOs and contract artifacts in A. Then run B and C in parallel. Merge bot
 | Lake score             | 9/9 complete decisions                    |
 +====================================================================+
 ```
+
+## Phase 3.5 — Developer Experience Review
+
+### Step 0 — DX Scope Assessment
+
+**Product type:** internal API/service and cross-repository local platform integration.
+
+**Target developer persona**
+
+```text
+Who:       TypeScript/Next maintainer new to tiles-game and roadcrosser
+Context:   Implements, tests, or operates the leaderboard across both repositories
+Tolerance: Five minutes after Node, Docker, and Supabase CLI are installed
+Expects:   One golden command, deterministic local data, typed contracts,
+           actionable failures, focused tests, and an explicit release path
+```
+
+Current DX completeness is **3.3/10** and current TTHW is **unbounded**. `tiles-game/README.md` documents only standalone Vite, roadcrosser has no root README, its `supabase/` directory has no `config.toml` or seed, and no script owns the full API + database + static-game lifecycle. The reviewed plan targets a **competitive warm TTHW of at most five minutes**. First-time Docker image download is a prerequisite-install cost and is reported separately.
+
+#### Developer Empathy Narrative
+
+I clone `tiles-game`, open its short README, and successfully run the Vite game. That feels healthy until I try to exercise the leaderboard: there is no backend command, no environment template, and no explanation that production embeds this build through a sibling repository. I inspect `publish:roadcrosser`, discover an assumed `../roadcrosser`, then switch repositories. Roadcrosser has no root README; `package.json` offers generic `dev`, `test:e2e`, and `sync:tiles-game` commands, but none says which starts Supabase, applies migrations, seeds a player, or verifies the replay contract. The sync script assumes `../tiles-game`, so my different checkout layout fails before I understand the boundary. Even if I start Next, I do not know which credentials are safe for local use or how to complete 270 tiles merely to prove one score. When a request fails, route-specific JSON gives me no stable code or correlation ID. I can read the architecture in the plan, but I cannot turn it into a successful first run. The intended experience replaces that uncertainty with one preflighted command, a deterministic golden replay, named focused checks, and output that tells me exactly what passed and what to do next.
+
+### DX Dual Voices
+
+#### CLAUDE SUBAGENT (DX — independent review)
+
+Found ten concrete gaps: no canonical onboarding path, no executable leaderboard scripts, incomplete local Supabase setup, a hard-coded sibling path, unnamed test orchestration, no short full-flow smoke, unspecified errors, unclear DTO ownership, no maintainer release sequence, and no debug/measurement contract. Initial score: 3.3/10.
+
+#### CODEX SAYS (DX — developer experience challenge)
+
+Confirmed the same root cause from the actual repository boundary: the plan described test environments but not an executable owner. A Vite-only path cannot prove HttpOnly cookies or Next routes, while roadcrosser lacks committed local Supabase configuration. The minimum coherent fix is a roadcrosser-owned golden path with a deterministic smoke replay, plus a lighter Vite proxy path only for focused UI iteration.
+
+```text
+DX DUAL VOICES — CONSENSUS TABLE
+=================================================================
+Dimension                           Claude  Codex  Consensus
+----------------------------------  ------  -----  ----------------
+1. Getting started < 5 min?         No      No     CONFIRMED
+2. API/CLI naming guessable?        Partial Partial CONFIRMED
+3. Error messages actionable?       No      No     CONFIRMED
+4. Docs findable & complete?        No      No     CONFIRMED
+5. Upgrade path safe?               Partial Partial CONFIRMED
+6. Dev environment friction-free?   No      No     CONFIRMED
+=================================================================
+CONFIRMED: 6/6. DISAGREE: 0.
+```
+
+### What Already Exists
+
+- `tiles-game/README.md` has a correct standalone install, dev, and validation loop.
+- `scripts/dev.mjs` already provides the preferred Tailscale-reachable Vite path.
+- roadcrosser already serves `/tiles-game` and same-origin static assets.
+- `scripts/sync-tiles-game.mjs` already builds and validates the public snapshot.
+- `publish-roadcrosser.mjs` already checks the sibling repo, branch, dirty state, build output, and asset base.
+- roadcrosser already uses Next route handlers, Supabase clients, Playwright, TypeScript, and Zod.
+- The engineering phase already defines the API routes, version contract, local test layers, failure registry, and runtime kill switches.
+
+### Competitive DX Benchmark and Magical Moment
+
+| Reference | Relevant standard | Applied decision |
+|---|---|---|
+| Supabase local workflow | committed config, migrations, seed, `start`, and reproducible `db reset` | version local DB setup and seed in roadcrosser |
+| Next route handlers | colocated typed HTTP boundary in the App Router | keep the service inside the existing host |
+| Playwright web servers | test runner owns one or more local processes | host E2E owns Next startup and teardown |
+| This plan before DX | no runnable full-stack path | unbounded TTHW |
+| This plan after DX | one golden command and one full-flow smoke | warm TTHW ≤ 5 minutes |
+
+The magical moment is a single smoke command proving that an anonymous browser identity can start an attempt, replay a legal run, publish rank 1, read public Top 10, and read its private PB:
+
+```text
+$ npm run smoke:tiles-leaderboard
+PASS local_supabase
+PASS contract_parity levelVersion=<hash>
+PASS attempt_started player="Copper Otter"
+PASS replay_validated
+PASS score_published rank=1
+PASS public_top10
+PASS private_personal_best
+Open http://127.0.0.1:3000/tiles-game
+```
+
+### Canonical Getting-Started Contract
+
+The source of truth is `roadcrosser/docs/tiles-game-leaderboard.md`, linked from both repositories' READMEs.
+
+Prerequisites are Node `>=22.12`, npm, a Docker-compatible runtime, and the Supabase CLI. The default sibling layout is `../tiles-game`; `TILES_GAME_ROOT` is the sole path override. Local ports may use `SUPABASE_WORKDIR`/Supabase config and `PORT`; production API origin remains same-origin and is not configurable.
+
+```sh
+# roadcrosser root, after npm install in both repos
+npm run dev:tiles-leaderboard
+```
+
+That command:
+
+1. preflights Node, npm, Docker, Supabase CLI, ports, and the sibling checkout;
+2. starts the local Supabase project and applies migrations/seed idempotently;
+3. reads local public and server credentials without writing secrets;
+4. builds and syncs the browser snapshot, replay kernel, manifest, and protocol artifact;
+5. starts Next and prints the canonical URL plus the focused smoke/verify commands.
+
+It fails before mutation when a prerequisite is absent. Every preflight failure prints **problem**, **cause**, and an exact **fix**. It never runs `db reset` implicitly; destructive local reset is a separate, explicit command.
+
+For focused UI work, `tiles-game npm run dev` may proxy `/api/tiles-game` to a documented local roadcrosser origin through a development-only `LEADERBOARD_API_ORIGIN`. This is not the integration or release gate.
+
+### Canonical Protocol, Errors, and Debugging
+
+One generated, versioned artifact owns request/response DTOs, public error codes, replay command schema, `replayContractVersion`, and `levelVersionId`. The tiles-game client and roadcrosser server both consume it, and parity tests fail when either side is stale.
+
+All public failures use:
+
+```json
+{
+  "error": {
+    "code": "LEVEL_VERSION_RETIRED",
+    "message": "This cached game version is no longer accepting ranked runs.",
+    "retryable": false,
+    "requestId": "req_..."
+  }
+}
+```
+
+`retryAfterSeconds` is included for retryable throttling or temporary unavailability. The operations guide maps every code to HTTP status, player copy, developer cause, recovery action, and log fields.
+
+Structured logs contain `requestId`, hashed player ID, attempt ID, level version, error code, duration, and cache outcome. Cookies, opaque tokens, raw IPs, and command logs are never logged by default. `DEBUG_TILES_LEADERBOARD=1` adds contract and state-transition diagnostics locally without revealing secrets.
+
+Three required error examples:
+
+| Path | Required developer message |
+|---|---|
+| Missing sibling repo | Problem: path invalid. Cause: no package at resolved path. Fix: checkout sibling or set `TILES_GAME_ROOT=/absolute/path`. |
+| Docker/Supabase unavailable | Problem: local DB did not start. Cause: named failed preflight. Fix: exact install/start command, then rerun. |
+| Contract mismatch | Problem: client version rejected. Cause: browser/server artifact hashes differ. Fix: run sync command and restart; include both hashes and `requestId`. |
+
+### Developer Journey Map
+
+| Stage | Developer does | Resolved friction | Status |
+|---|---|---|---|
+| 1. Discover | follows either README link to the canonical guide | no roadcrosser root README | Planned |
+| 2. Install | installs both npm trees and listed prerequisites | hidden Docker/CLI requirement | Planned |
+| 3. Configure | accepts safe local defaults or sets `TILES_GAME_ROOT` | sibling/env guessing | Planned |
+| 4. Hello World | runs `dev:tiles-leaderboard` then the smoke command | no full-stack proof | Planned |
+| 5. Integrate | edits typed protocol/client/server modules | ambiguous DTO ownership | Planned |
+| 6. Debug | follows stable code, request ID, and debug output | incompatible failures | Planned |
+| 7. Test | runs focused watch, smoke, or full verify command | unnamed startup/test order | Planned |
+| 8. Upgrade | increments contract, retains current+previous, follows compatibility checklist | policy without procedure | Planned |
+| 9. Operate | uses flags, metrics query, moderation script, deploy/rollback runbook | architecture-only operations | Planned |
+
+### First-Time Developer Confusion Report
+
+```text
+T+0:00  Opens tiles-game README and starts Vite successfully.
+T+0:45  Searches for leaderboard backend instructions; none exist.
+T+1:30  Finds sibling sync script and its implicit ../tiles-game layout.
+T+2:15  Starts generic roadcrosser dev but cannot reproduce local Supabase state.
+T+3:00  Cannot prove cookie + replay + rank without manually clearing 270 tiles.
+RESULT  Current flow blocked. Reviewed flow addresses every point with one guide,
+        one preflighted dev command, and one deterministic smoke command.
+```
+
+### Passes 1–8
+
+| Dimension | Initial | Reviewed plan | Resolution |
+|---|---:|---:|---|
+| 1. Getting Started | 2 | 9 | one roadcrosser-owned command, explicit prerequisites, visible success |
+| 2. API/CLI Design | 6 | 9 | consistent resources, typed protocol, focused commands and defaults |
+| 3. Error Messages | 3 | 9 | stable envelope, recovery matrix, request IDs, three traced failures |
+| 4. Documentation | 1 | 9 | canonical guide linked from both repos and verified in CI |
+| 5. Upgrade Path | 6 | 9 | version generation, compatibility window, deploy and inverse rollback |
+| 6. Dev Environment | 2 | 9 | committed local Supabase, seed, preflight, watch/smoke/verify layers |
+| 7. Internal Handoff | 3 | 8 | source ownership and contributor path are explicit; public ecosystem N/A |
+| 8. DX Measurement | 3 | 8 | smoke duration, command health, CI drift checks, post-build DX review |
+
+Overall DX plan: **3.3/10 → 8.9/10**. The remaining gap to 10 is measured implementation performance; run `/devex-review` after implementation rather than claiming the target from the document.
+
+### Exact Development and Verification Commands
+
+Roadcrosser owns orchestration:
+
+```sh
+npm run dev:tiles-leaderboard       # full local stack; non-destructive
+npm run smoke:tiles-leaderboard     # golden replay through real API + DB
+npm run verify:tiles-leaderboard    # contract, SQL/routes, host Playwright
+npm run test:tiles-leaderboard:db   # local Supabase SQL and route tests
+npm run test:tiles-leaderboard:e2e  # iframe and same-origin host flows
+```
+
+Tiles-game retains focused feedback:
+
+```sh
+npm run test -- src/leaderboard
+npm run test:e2e -- --grep leaderboard
+npm run build:leaderboard-contract
+```
+
+Playwright owns server startup/teardown in CI. The smoke uses a golden legal replay against a test-only compact manifest; production manifests remain unchanged. CI executes the guide's smoke and verify commands verbatim.
+
+### Upgrade, Deploy, and Rollback
+
+1. Increment `replayContractVersion` only for legality-affecting engine changes.
+2. Generate and parity-test browser and server artifacts; sync static, protocol, and current+previous replay kernels into roadcrosser.
+3. Apply additive migration and deploy roadcrosser with writes disabled.
+4. Run production-safe read and smoke checks, activate the new level version, then enable writes.
+5. Keep the previous kernel/start contract for 30 days.
+
+Rollback disables writes, reactivates the previous level version, redeploys the previous roadcrosser artifact, and runs the same smoke. Additive schema remains; never roll back by deleting scores or resetting a remote database.
+
+### DX NOT in Scope
+
+- Public SDK, OpenAPI portal, or package publication: only two owned consumers exist.
+- Hosted developer playground: the local golden smoke is cheaper and proves more.
+- Plugin/extension ecosystem and community channels: this is an internal service.
+- Individual-maintainer telemetry: CI timings and command outcomes are sufficient.
+- Automatic remote database reset: unsafe and unnecessary.
+- Arbitrary production API origin or storage adapters: same-origin roadcrosser is the security contract.
+
+### DX Implementation Checklist
+
+- [ ] TTHW is measured at ≤ 5 minutes after prerequisites, not merely estimated.
+- [ ] One documented command starts the full non-destructive local stack.
+- [ ] `supabase/config.toml`, deterministic seed, and placeholder-only env example are committed.
+- [ ] Both READMEs link to one canonical guide.
+- [ ] `TILES_GAME_ROOT` and local port overrides are validated and documented.
+- [ ] One generated versioned protocol artifact is consumed by both repos.
+- [ ] Stable error codes include message, retryability, request ID, and recovery docs.
+- [ ] Golden smoke proves cookie, attempt, replay, public Top 10, and private PB.
+- [ ] Focused, smoke, full verification, and teardown commands are named.
+- [ ] Logs are structured and exclude identity tokens, raw IPs, and commands.
+- [ ] Deploy and inverse rollback steps preserve current+previous compatibility.
+- [ ] CI runs the documented smoke and verification commands verbatim.
+- [ ] `/devex-review` measures the implemented flow before release.
+
+### DX Implementation Tasks
+
+- [ ] **DX-T1 (P1, human: ~1 day / CC: ~1 h)** — Local stack — Add the canonical guide, committed Supabase local project, safe env example, preflight, and `dev:tiles-leaderboard`.
+- [ ] **DX-T2 (P1, human: ~4 h / CC: ~30 min)** — Protocol — Generate the shared versioned DTO/error artifact and compatibility check.
+- [ ] **DX-T3 (P1, human: ~1 day / CC: ~1 h)** — Verification — Add golden smoke, focused commands, host orchestration, and docs-drift CI.
+- [ ] **DX-T4 (P2, human: ~4 h / CC: ~30 min)** — Operations — Add structured debug logs and the exact deploy/rollback runbook.
+
+### DX Completion Summary
+
+```text
++====================================================================+
+| DX PLAN REVIEW — COMPLETION SUMMARY                                |
++====================================================================+
+| Product type          | Internal API/service + local platform      |
+| Persona               | New TypeScript/Next maintainer             |
+| Mode                  | DX POLISH                                  |
+| TTHW                  | unbounded -> <= 5 min warm                 |
+| Overall               | 3.3/10 -> 8.9/10                          |
+| Dimensions            | 8/8 reviewed                              |
+| Dual voices           | 6/6 confirmed, 0 disagreements            |
+| Magical moment        | golden replay smoke                       |
+| Remaining proof       | measured post-implementation DX review    |
++====================================================================+
+```
+
+## Cross-Phase Themes
+
+- **Trust must be explicit, not implied.** CEO rejected “verified” language, Design made ranked mode deliberate, Engineering defined server replay, and DX makes contract versions and failures visible.
+- **Ordinary play must survive service failure.** CEO set the product boundary, Design preserved local celebration, Engineering added kill switches, and DX makes the full outage path testable.
+- **Cross-repository ownership is the dominant implementation risk.** CEO chose roadcrosser reuse, Engineering required a versioned vendor artifact, and DX assigns one orchestration/doc/release owner.
+- **Most players and maintainers need feedback outside the happy path.** PB/rank covers players; stable errors, smoke output, and request IDs cover developers.
