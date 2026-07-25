@@ -1133,7 +1133,7 @@ RESULT  Current flow blocked. Reviewed flow addresses every point with one guide
         one preflighted dev command, and one deterministic smoke command.
 ```
 
-### Passes 1–8
+### DX Scorecard — Passes 1–8
 
 | Dimension | Initial | Reviewed plan | Resolution |
 |---|---:|---:|---|
