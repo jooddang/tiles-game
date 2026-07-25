@@ -6,7 +6,7 @@ Date: 2026-07-24
 
 ## Goal
 
-Add a public, all-time Top 10 leaderboard to the tile game so a player can compare a completed level against the best verified completion times.
+Add a public, all-time Top 10 leaderboard to the tile game so a player can compare a completed level against the best server-validated completion times.
 
 ## Initial Product Decisions
 
@@ -26,8 +26,8 @@ Add a public, all-time Top 10 leaderboard to the tile game so a player can compa
 2. A player starts a fresh attempt.
 3. The server issues an attempt token tied to player, level version, and server start time.
 4. The client records legal tile removals for that attempt.
-5. On completion, the client submits the attempt token and move sequence.
-6. The server replays the sequence against the canonical level, verifies completion, computes elapsed time from server timestamps, and upserts the player's personal best.
+5. On completion, the client submits the attempt token and replayable command sequence.
+6. The server replays the sequence against the canonical level, validates completion, computes elapsed time from server timestamps, and upserts the player's personal best.
 7. The completion panel shows accepted rank, not-in-Top-10 status, or a named failure with retry guidance.
 
 ## Proposed Components
@@ -48,7 +48,7 @@ Add a public, all-time Top 10 leaderboard to the tile game so a player can compa
 
 - The browser is untrusted.
 - The server validates the level version, attempt ownership, expiration, legal move order, full completion, rate limits, and idempotency key.
-- Display names are optional, length-limited, normalized, and escaped.
+- The server assigns one stable, length-bounded, family-safe generated name per browser identity.
 - Raw anonymous identifiers are never rendered.
 
 ## UI States
@@ -75,7 +75,7 @@ Add a public, all-time Top 10 leaderboard to the tile game so a player can compa
 - Integration: start → legal replay → personal-best upsert → Top 10 read.
 - Integration failure cases: illegal move, wrong level version, expired attempt, duplicate completion, rate limit.
 - UI: loading, empty, accepted, outside Top 10, offline, rejected.
-- E2E: complete a small test level, receive verified rank, reload, and see the same leaderboard.
+- E2E: complete a small test level, receive a server-validated rank, reload, and see the same leaderboard.
 
 ## Confirmed Premises
 
@@ -380,3 +380,229 @@ error threshold crossed?
 | 6 | CEO | Use generated names for launch | Auto-decided | Pragmatic | Removes free-text moderation from a preteen-facing game | Public free-text names |
 | 7 | CEO | Include operator deletion, anomaly flags, and kill switch | Auto-decided | Boil lakes | Public scores require direct operational controls | Manual DB-only cleanup |
 | 8 | CEO | Keep rotating challenges and durable accounts out of scope | Taste | Bias toward action | They change the product loop and identity promise | Bundle adjacent expansions |
+| 9 | Design | Preserve immediate level-clear celebration before rank validation | Mechanical | Completeness | Network state must not revoke local gameplay success | Replace completion with spinner |
+| 10 | Design | Desktop disclosure panel; mobile modal bottom sheet | Taste | Explicit over clever | One responsive pattern avoids crowded HUD and ambiguous implementations | Ten permanent inline rows |
+| 11 | Design | Ordinary play stays default; ranked run requires CTA and countdown | Auto-decided | Explicit over clever | Players must know exactly when a run counts | Silent automatic ranking |
+| 12 | Design | Use a dedicated live region for concise rank status | Mechanical | Completeness | Updating ten rows inside the play-area live region would be noisy | Whole-table announcements |
+| 13 | Design | Show personal result separately when outside Top 10 | Auto-decided | Completeness | A fake row 11 misrepresents the Top 10 and confuses hierarchy | Append player as row 11 |
+| 14 | Design | Make generated identity visible before ranked play | Mechanical | Design for trust | The player must know which public identity will appear | Reveal only after submission |
+| 15 | Design | Raise new and shared leaderboard controls to 44px minimum | Mechanical | Completeness | Existing 42px game buttons miss the stated touch requirement | Apply 44px only to new controls |
+
+## Phase 2 — Design Review
+
+### Step 0 — Design Scope Assessment
+
+Initial design completeness: **4.5/10**. The rough plan named major data states but left the ranked-entry interaction, exact responsive layout, completion hierarchy, focus behavior, partial successes, and copy unresolved. A 10/10 plan specifies what the player sees and can do at every transition without making network activity compete with the puzzle.
+
+No active `DESIGN.md` exists. The implementation must align with the current light-background Hex Tower UI, CSS variables in `global.css`, compact 8px controls, high-contrast focus ring, and existing responsive breakpoints. The older preteen visual exploration is not the current product target.
+
+The gstack design binary was unavailable, so no generated PNG mockup was used. The reviewed source of truth is the explicit responsive wireframe and state table below.
+
+### Design Dual Voices
+
+#### CLAUDE SUBAGENT (design — independent review)
+
+The independent reviewer rated the plan 4.5/10 and found twelve gaps. Its highest-priority findings were an undefined ranked-mode entry, async validation weakening the completion moment, unresolved responsive placement, and missing accessibility behavior for the mobile sheet and live updates.
+
+#### CODEX SAYS (design — UX challenge)
+
+Codex found three critical and seven high/medium gaps. It agreed that the leaderboard must be tertiary, ranked mode needs a complete interaction contract, the state machine is incomplete, and the current broad `aria-live` region cannot own dynamic leaderboard rows.
+
+```text
+DESIGN LITMUS SCORECARD
+═══════════════════════════════════════════════════════════════
+Dimension                           Claude  Codex  Consensus
+─────────────────────────────────── ─────── ────── ─────────
+1. Information hierarchy explicit? NO      NO      CONFIRMED
+2. Interaction states complete?    NO      NO      CONFIRMED
+3. Completion emotion preserved?   NO      NO      CONFIRMED
+4. Responsive behavior intentional?NO      NO      CONFIRMED
+5. Accessibility specified?        NO      NO      CONFIRMED
+6. Trust copy consistent?           NO      NO      CONFIRMED
+7. Identity/personal row clear?     NO      NO      CONFIRMED
+═══════════════════════════════════════════════════════════════
+```
+
+### Responsive Wireframe and Information Hierarchy
+
+```text
+DESKTOP >= 761px
+┌──────────────────────┬──────────────────────────────────────┐
+│ Level / title        │                                      │
+│ progress             │              BOARD                   │
+│ Moves | Time         │                                      │
+│ [Start ranked run]   │                                      │
+│ Undo Retry Prev Next │                                      │
+│ Pick level           │                                      │
+│ [Records ▾]          ├──────────────────────────────────────┤
+│  disclosure panel    │ Level clear                          │
+│  max-height: 320px   │ #4 · New personal best · 00:18.42   │
+└──────────────────────┴──────────────────────────────────────┘
+
+MOBILE <= 760px
+┌─────────────────────────────────────────────────────────────┐
+│ Level / title                      [Records]                 │
+│ Moves | Time        [Start ranked run]                      │
+│ Undo Retry Prev Next                                        │
+├─────────────────────────────────────────────────────────────┤
+│                          BOARD                              │
+├─────────────────────────────────────────────────────────────┤
+│ Level clear · #4 · New personal best  [View records]        │
+└─────────────────────────────────────────────────────────────┘
+
+[Records] opens modal bottom sheet:
+┌─────────────────────────────────────────────────────────────┐
+│ All-time · Hex Tower                              [Close]   │
+│ Your best  #24 · Swift Fox 42 · 00:31.08                    │
+│ Rank      Player                               Time          │
+│ 1         Solar Otter 17                       00:18.42      │
+│ ... internally scrollable through row 10 ...                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+Hierarchy: level identity first, current run and mode second, gameplay controls third, level selection fourth, personal record fifth, and public Top 10 last. The board remains the visual anchor.
+
+### Ranked Interaction State Machine
+
+```text
+UNRANKED
+  │ Start ranked run
+  ▼
+STARTING ── failure ─▶ UNAVAILABLE ── dismiss ─▶ UNRANKED
+  │ token accepted
+  ▼
+COUNTDOWN 3 → 2 → 1
+  ├─ cancel / level change ─▶ UNRANKED
+  ▼
+RANKED_ACTIVE
+  ├─ tab hidden ─▶ INVALIDATED
+  ├─ restart ─▶ ENDED ─▶ optional new STARTING
+  ├─ level change ─▶ ENDED
+  └─ complete ─▶ LEVEL_CLEAR + SUBMITTING
+                             ├─ accepted ─▶ RANK_RESULT
+                             ├─ retryable ─▶ RETRY_AVAILABLE
+                             └─ terminal ─▶ RANK_REJECTED
+```
+
+Board input is disabled during `STARTING` and `COUNTDOWN`. Undo is allowed and serialized as a command; it costs elapsed time naturally. Restart ends the ranked attempt and returns to unranked play, with a separate “Start another ranked run” action.
+
+### Interaction State Coverage
+
+| Feature | State | Player sees | Primary action |
+|---|---|---|---|
+| Records read | Loading | Caption plus three non-announced skeleton rows | None |
+| Records read | Empty | “No records yet. Start a ranked run.” plus generated identity | Start ranked run |
+| Records read | Ready | Semantic Top 10 table and separate personal-best summary | Close/collapse |
+| Records read | Stale | Retained rows, “Couldn’t refresh · Last updated …” | Retry |
+| Records read | Error without cache | “Records are unavailable. You can still play.” | Retry |
+| Attempt start | Pending | “Preparing ranked run…”; board disabled | Cancel |
+| Countdown | Active | Centered 3/2/1, reduced-motion fade only | Cancel |
+| Ranked run | Active | Persistent “Ranked” badge and server-clock display | Play |
+| Ranked run | Invalidated | “Ranked run ended because the game left the foreground.” | Play unranked |
+| Submission | Pending | Existing “Level clear” plus “Checking ranked run…” | None |
+| Submission | Top 10 + PB | “#N · New personal best · 00:18.42” | View records |
+| Submission | PB outside Top 10 | “New personal best · Rank #N” | View records |
+| Submission | Accepted slower | “Record accepted · Your best remains 00:18.42” | View records |
+| Submission | Accepted, refresh failed | Authoritative result plus stale table label | Retry records |
+| Submission | Response lost | “Result pending. Check again.” | Check result |
+| Submission | Expired | “This ranked run expired. Start another.” | Start ranked run |
+| Submission | Rejected | “Run could not be validated. Local level clear is saved.” | Play again |
+| Feature disabled | Disabled | No Records or ranked controls; current UI unchanged | None |
+
+The completion POST response is authoritative for the just-finished result. A cached or later GET response never overwrites it with older rank information.
+
+### User Journey and Emotional Arc
+
+| Step | Player does | Intended feeling | Design support |
+|---|---|---|---|
+| 1 | Opens game | Immediate play, no ceremony | Unranked board remains default |
+| 2 | Notices personal record | Curiosity | Small “Records” disclosure, not a dashboard |
+| 3 | Starts ranked run | Deliberate commitment | CTA explains browser identity and casual server validation |
+| 4 | Watches countdown | Focused tension | Board locked; concise 3/2/1 |
+| 5 | Plays | Flow | Only persistent Ranked badge and timer |
+| 6 | Clears level | Accomplishment | “Level clear” appears immediately, independent of API |
+| 7 | Waits for validation | Short suspense | Secondary “Checking ranked run…” status |
+| 8 | Gets result | Personal meaning | PB and rank before public table |
+| 9 | Opens records | Comparison | Top 10 on demand; “You” marked with text and color |
+
+Time horizon: within five seconds the game remains recognizable and playable; within five minutes ranked mode is self-explanatory; over repeated visits the personal best provides progress even when Top 10 is unreachable.
+
+### Pass 1 — Information Architecture: 4/10 → 9/10
+
+The original plan did not decide whether records were permanent HUD content or a mobile sheet. The responsive wireframe now fixes one hierarchy: personal ranked outcome is prominent at completion, while the full Top 10 is on-demand. The remaining point below 10 is visual validation against a rendered implementation.
+
+### Pass 2 — Interaction States: 5/10 → 10/10
+
+Loading, empty, stale, unavailable, pending, countdown, active, invalidated, accepted variations, response loss, expiry, rejection, and disabled states now have exact player-visible outcomes. Partial success preserves the authoritative completion response and whichever read fragment succeeded.
+
+### Pass 3 — Journey and Emotional Arc: 4/10 → 9/10
+
+The sequence now preserves immediate accomplishment before network suspense and prevents a failed ranking request from revoking a level clear. The final point requires playtesting countdown duration and copy with real players.
+
+### Pass 4 — AI Slop Risk: 6/10 → 9/10
+
+Classifier: APP UI. The design reuses the current single-board composition and compact utility controls instead of adding dashboard cards, decorative trophies, gradients, or a card mosaic. One table, one personal summary, and one disclosure control are sufficient.
+
+### Pass 5 — Design System Alignment: 5/10 → 8/10
+
+There is no `DESIGN.md`, so alignment relies on existing CSS variables, 8px radii, typography weights, neutral panel background, and focus rings. New components must use these tokens and avoid reviving superseded Cosmic Arcade/preteen assets. A future design-system document is useful but does not block this feature.
+
+### Pass 6 — Responsive and Accessibility: 3/10 → 10/10
+
+The Top 10 uses a semantic table with caption and column headers. Loading uses `aria-busy`; decorative skeletons are hidden. Only concise attempt/rank status enters a dedicated `aria-live="polite"` region; the table remains outside the existing play-area live region.
+
+All new and shared controls are at least 44px. The mobile sheet traps focus, closes on Escape and the explicit Close button, restores focus to Records, makes the background inert, and suppresses R/U/Z game shortcuts while open. Rank/time columns are fixed, names truncate visually but retain an accessible full label, times use tabular numerals, and “You” is communicated by text plus color. Motion respects `prefers-reduced-motion`.
+
+Viewport acceptance checks cover 320×568, 390×844, 760×800, 1280×800, and short landscape/iframe heights. Level changes cancel stale requests, update the caption immediately, and never show old rows under the new level title.
+
+### Pass 7 — Resolved Design Decisions
+
+| Decision | Resolution |
+|---|---|
+| Ranked entry | Explicit CTA, server start, cancellable countdown |
+| Completion priority | Local level clear first; rank status second |
+| Desktop records | Collapsible bounded HUD disclosure |
+| Mobile records | Modal bottom sheet with internal scrolling |
+| Player outside Top 10 | Separate personal-best summary, never row 11 |
+| Identity | Stable generated name shown before ranked play |
+| Free-text name | Not included |
+| Time format | `mm:ss.cc`, tabular numerals |
+| Rank refresh authority | Completion POST beats cached GET |
+| Keyboard shortcuts in sheet | Suppressed while modal is open |
+
+### Design NOT in Scope
+
+- New visual brand or design system: reuse the current shipped light Hex Tower direction.
+- Decorative podium, avatars, trophies, confetti, or realtime row movement: they compete with the board and add motion.
+- Swipe-only sheet dismissal: inaccessible and unnecessary; button and Escape are required.
+- User-selected themes or leaderboard filters beyond current level: unrelated to Top 10.
+
+### Design Implementation Tasks
+
+- [ ] **DES-T1 (P1, human: ~1 day / CC: ~1 h)** — Ranked flow — Implement and test the explicit attempt state machine and completion hierarchy.
+- [ ] **DES-T2 (P1, human: ~1 day / CC: ~1 h)** — Responsive UI — Build desktop disclosure and accessible mobile sheet from one records component.
+- [ ] **DES-T3 (P1, human: ~4 h / CC: ~30 min)** — Accessibility — Separate live regions, modal focus management, 44px controls, reduced motion, and semantic table.
+- [ ] **DES-T4 (P2, human: ~2 h / CC: ~20 min)** — Visual QA — Verify hierarchy and overflow at all specified viewports.
+
+### Design Completion Summary
+
+```text
++====================================================================+
+| DESIGN PLAN REVIEW — COMPLETION SUMMARY                            |
++====================================================================+
+| System audit          | No DESIGN.md; existing CSS patterns reused |
+| Initial score         | 4.5/10                                     |
+| Information arch      | 4/10 → 9/10                                |
+| Interaction states    | 5/10 → 10/10                               |
+| Journey               | 4/10 → 9/10                                |
+| AI slop               | 6/10 → 9/10                                |
+| Design alignment      | 5/10 → 8/10                                |
+| Responsive/a11y       | 3/10 → 10/10                               |
+| Decisions             | 10 resolved, 0 deferred                    |
++--------------------------------------------------------------------+
+| NOT in scope          | 4 items                                    |
+| Mockups               | skipped: design binary unavailable         |
+| Overall design score  | 4.5/10 → 9/10                              |
+| Dual voices           | 7/7 confirmed concerns                     |
++====================================================================+
+```
