@@ -13,15 +13,6 @@ on:
       - "vite*.ts"
   push:
     branches: [main]
-    paths:
-      - ".github/workflows/leaderboard-contract.yml"
-      - "package-lock.json"
-      - "package.json"
-      - "playwright*.ts"
-      - "scripts/**"
-      - "src/**"
-      - "tests/**"
-      - "vite*.ts"
   workflow_dispatch:
 
 permissions:
@@ -50,6 +41,9 @@ jobs:
 
       - name: Run unit tests
         run: npm test
+
+      - name: Verify CI trigger contract
+        run: npm run test:ci-workflow
 
       - name: Run production build
         run: npm run build

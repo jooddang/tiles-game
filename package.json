@@ -10,6 +10,7 @@
     "typecheck": "tsc -b",
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
+    "test:ci-workflow": "node --test tests/scripts/ciWorkflow.test.mjs",
     "test:publish-safety": "node --test tests/scripts/publishRoadcrosserSafety.test.mjs",
     "test:e2e": "playwright test",
     "test:e2e:leaderboard-contract": "playwright test --config playwright.contract.config.ts",
