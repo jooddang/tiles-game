@@ -1,8 +1,9 @@
 <!-- /autoplan restore point: /Users/jooddang/.gstack/projects/jooddang-tiles-game/main-autoplan-restore-20260724-135948.md -->
 # All-Time Top 10 Leaderboard Plan
 
-Status: `/autoplan` review in progress
-Date: 2026-07-24
+Status: **APPROVED**
+Reviewed: 2026-07-24
+Approved: 2026-07-25
 
 ## Goal
 
