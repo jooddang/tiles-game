@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { AttemptState } from "./attemptMachine";
+import type { LeaderboardEntry } from "./protocol";
 import type { RecordsState } from "./useRankedAttempt";
 
 export type LeaderboardPanelProps = {
@@ -204,7 +205,7 @@ function RecordsHeader({
   );
 }
 
-function RecordsContent({
+export function RecordsContent({
   records,
   onRefresh,
 }: {
@@ -237,6 +238,13 @@ function RecordsContent({
 
   const { leaderboard, personal, authoritativeResult } = records;
   const authoritativeBest = authoritativeResult?.personalBest;
+  const entries = leaderboard
+    ? mergeAuthoritativeTopTenEntry(
+        leaderboard.entries,
+        authoritativeBest,
+        personal?.displayName,
+      )
+    : null;
   return (
     <>
       {personal ? (
@@ -275,9 +283,9 @@ function RecordsContent({
           </button>
         </div>
       ) : null}
-      {!leaderboard ? (
+      {!entries ? (
         <p>Top 10 is temporarily unavailable.</p>
-      ) : leaderboard.entries.length === 0 ? (
+      ) : entries.length === 0 ? (
         <p>No records yet. Start a ranked run.</p>
       ) : (
         <table className="leaderboard-table">
@@ -290,7 +298,7 @@ function RecordsContent({
             </tr>
           </thead>
           <tbody>
-            {leaderboard.entries.map((entry) => {
+            {entries.map((entry) => {
               const isPlayer =
                 authoritativeBest?.scoreId === entry.scoreId ||
                 personal?.personalBest?.scoreId === entry.scoreId;
@@ -310,6 +318,41 @@ function RecordsContent({
       )}
     </>
   );
+}
+
+function mergeAuthoritativeTopTenEntry(
+  entries: readonly LeaderboardEntry[],
+  authoritativeBest:
+    | {
+        readonly scoreId: string;
+        readonly elapsedSeconds: number;
+        readonly rank: number;
+        readonly isTopTen: boolean;
+      }
+    | null
+    | undefined,
+  displayName: string | undefined,
+): readonly LeaderboardEntry[] {
+  if (
+    !authoritativeBest?.isTopTen ||
+    !displayName ||
+    entries.some((entry) => entry.scoreId === authoritativeBest.scoreId)
+  ) {
+    return entries;
+  }
+
+  return [
+    ...entries,
+    {
+      scoreId: authoritativeBest.scoreId,
+      rank: authoritativeBest.rank,
+      displayName,
+      elapsedSeconds: authoritativeBest.elapsedSeconds,
+      achievedAt: new Date().toISOString(),
+    },
+  ]
+    .sort((left, right) => left.rank - right.rank)
+    .slice(0, 10);
 }
 
 function getFocusable(container: HTMLElement | null | undefined) {

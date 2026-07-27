@@ -13,6 +13,7 @@ import { levelVersionId } from "../leaderboard/replayContract";
 import { useRankedAttempt } from "../leaderboard/useRankedAttempt";
 import { BoardView } from "./BoardView";
 import { GameHud } from "./GameHud";
+import { LevelCompletePanel } from "./LevelCompletePanel";
 import { useGameController } from "./useGameController";
 
 export type GameScreenProps = {
@@ -57,6 +58,7 @@ export function GameScreen({
       controller.gameState.status === "complete");
   const displayedElapsedSeconds =
     ranked.rankedElapsedSeconds ?? controller.elapsedSeconds;
+  const isLevelComplete = controller.gameState.status === "complete";
 
   useEffect(() => {
     let isCurrent = true;
@@ -133,7 +135,7 @@ export function GameScreen({
   return (
     <main className="game-screen" data-theme="cosmic-arcade">
       <GameHud
-        isInteractionLocked={rankedControlsFrozen}
+        isInteractionLocked={rankedControlsFrozen || isLevelComplete}
         controller={{
           ...controller,
           elapsedSeconds: displayedElapsedSeconds,
@@ -187,22 +189,12 @@ export function GameScreen({
         />
 
         <div className="feedback-panel">
-          {controller.gameState.status === "complete" ? (
+          {isLevelComplete ? (
             <div className="completion" role="status">
               <strong>Level clear</strong>
               <span>
-                Solved in {controller.gameState.moveCount} moves.
-                {rankedControlsFrozen ? " Ranked result saved." : " Hit Next to keep going."}
+                Review your score and the leaderboard to continue.
               </span>
-              {leaderboardEnabled && currentLevelVersionId ? (
-                <button
-                  type="button"
-                  className="text-button completion-records"
-                  onClick={() => setIsRecordsOpen(true)}
-                >
-                  View records
-                </button>
-              ) : null}
             </div>
           ) : controller.blockedFeedback ? (
             <div className="blocked-message" role="status">
@@ -220,6 +212,36 @@ export function GameScreen({
           )}
         </div>
       </section>
+
+      {isLevelComplete ? (
+        <LevelCompletePanel
+          moves={controller.gameState.moveCount}
+          elapsedSeconds={displayedElapsedSeconds}
+          canGoNext={controller.canGoNext}
+          leaderboardEnabled={leaderboardEnabled && currentLevelVersionId !== null}
+          records={ranked.recordsState}
+          attempt={ranked.attemptState}
+          onRefreshRecords={() => void ranked.refreshRecords()}
+          onRetrySubmission={() => void ranked.retrySubmission()}
+          onTryRanked={() => {
+            controller.restart();
+            if (leaderboardEnabled && currentLevelVersionId) {
+              void ranked.startRankedRun();
+            } else {
+              ranked.cancelRankedRun();
+            }
+          }}
+          onContinue={() => {
+            setIsRecordsOpen(false);
+            ranked.cancelRankedRun();
+            if (controller.canGoNext) {
+              controller.goNextLevel();
+            } else {
+              controller.restart();
+            }
+          }}
+        />
+      ) : null}
     </main>
   );
 }

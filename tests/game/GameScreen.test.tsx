@@ -111,16 +111,23 @@ describe("GameScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: /Tile test-a arrow up/i }));
     fireEvent.click(screen.getByRole("button", { name: /Tile test-b arrow up/i }));
 
-    expect(screen.getByText("Level clear")).toBeInTheDocument();
-    expect(screen.getByText(/Solved in 2 moves/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "Level complete" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "Level complete" }),
+    ).toHaveFocus();
+    expect(screen.getByText("2 moves")).toBeInTheDocument();
+    expect(screen.getByText("0:00")).toBeInTheDocument();
   });
 
-  it("next_starts_the_next_level_after_completion", () => {
+  it("completion_flow_starts_the_next_level_after_showing_the_score", () => {
     render(<GameScreen levels={testLevels} />);
 
     fireEvent.click(screen.getByRole("button", { name: /Tile test-a arrow up/i }));
     fireEvent.click(screen.getByRole("button", { name: /Tile test-b arrow up/i }));
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Next level" }));
 
     expect(screen.getByRole("heading", { name: "Test Blocked" })).toBeInTheDocument();
     expect(screen.getByTestId("move-count")).toHaveTextContent("0");
@@ -179,16 +186,24 @@ describe("GameScreen", () => {
     );
     expect(screen.getByText(/#1 · New personal best/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Retry" })).toBeDisabled();
+    expect(
+      screen.getAllByRole("button", { name: "Retry" }).find(
+        (button) => button.className === "game-button",
+      ),
+    ).toBeDisabled();
     expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
     expect(screen.getByLabelText(/pick level/i)).toBeDisabled();
-    expect(screen.getByRole("button", { name: "View records" })).toBeEnabled();
-    fireEvent.click(screen.getByRole("button", { name: "View records" }));
-    expect(screen.getByText(/Your best #1/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "New high score" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("You placed #1")).toBeInTheDocument();
+    expect(
+      screen.getByText("Swift Fox 42", { selector: ".high-score-name strong" }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Couldn’t refresh/)).toBeInTheDocument();
     expect(
-      screen.queryByRole("table", { name: "Server-validated all-time Top 10" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("table", { name: "Server-validated all-time Top 10" }),
+    ).toBeInTheDocument();
 
     const storedProgress = JSON.parse(
       window.localStorage.getItem("tiles-game-progress-v2") ?? "{}",
@@ -198,7 +213,83 @@ describe("GameScreen", () => {
     expect(storedProgress.bestStatsByLevelId?.["test-complete"]?.seconds).toBe(0);
 
     fireEvent.keyDown(window, { key: "r" });
-    expect(screen.getByText("Level clear")).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "New high score" }),
+    ).toBeInTheDocument();
+  });
+
+  it("ranked_result_outside_the_top_ten_shows_the_board_before_continuing", async () => {
+    const versionId = await levelVersionId(testLevels[0]);
+    const client = {
+      ...createLeaderboardClientFake(),
+      getLeaderboard: vi.fn().mockImplementation((levelVersionId: string) =>
+        Promise.resolve({
+          levelVersionId,
+          entries: Array.from({ length: 10 }, (_, index) => ({
+            scoreId: `leader-${index + 1}`,
+            rank: index + 1,
+            displayName: `Player ${index + 1}`,
+            elapsedSeconds: 8 + index,
+            achievedAt: "2026-07-25T00:00:00.000Z",
+          })),
+        }),
+      ),
+      completeAttempt: vi.fn().mockImplementation(() =>
+        Promise.resolve({
+          status: "published",
+          submittedScoreId: "score-12",
+          levelVersionId: versionId,
+          elapsedSeconds: 32,
+          isPersonalBest: true,
+          personalBest: {
+            scoreId: "score-12",
+            elapsedSeconds: 32,
+            rank: 12,
+            isTopTen: false,
+          },
+        }),
+      ),
+    } as LeaderboardClient;
+
+    render(
+      <GameScreen
+        levels={testLevels}
+        leaderboardEnabled={true}
+        leaderboardClient={client}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Start ranked run" }),
+      ).toBeEnabled(),
+    );
+    vi.useFakeTimers();
+    fireEvent.click(screen.getByRole("button", { name: "Start ranked run" }));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      vi.advanceTimersByTime(4_100);
+      await Promise.resolve();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Tile test-a arrow up/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Tile test-b arrow up/i }));
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(
+      screen.getByRole("dialog", { name: "Level complete" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Not in the Top 10 this time")).toBeInTheDocument();
+    expect(
+      screen.getByRole("table", { name: "Server-validated all-time Top 10" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next level" }));
+    expect(screen.getByRole("heading", { name: "Test Blocked" })).toBeInTheDocument();
   });
 
   it("level_switch_closes_records_before_the_previous_board_can_flash", async () => {

@@ -269,9 +269,138 @@ p {
   box-shadow: none;
 }
 
+.level-complete-backdrop {
+  position: fixed;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(28, 25, 39, 0.62);
+  backdrop-filter: blur(10px);
+}
+
+.level-complete-panel {
+  display: grid;
+  width: min(720px, 100%);
+  max-height: min(860px, calc(100dvh - 48px));
+  gap: 18px;
+  overflow: auto;
+  padding: clamp(20px, 4vw, 34px);
+  border: 1px solid rgba(105, 101, 118, 0.28);
+  border-radius: 18px;
+  background: #f8f6fa;
+  box-shadow: 0 30px 90px rgba(22, 19, 31, 0.42);
+}
+
+.level-complete-panel:focus {
+  outline: none;
+}
+
+.level-complete-hero {
+  padding: clamp(18px, 3vw, 26px);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(255, 218, 63, 0.72), transparent 28%),
+    linear-gradient(135deg, #e7edff, #f2e9ff 70%);
+}
+
+.level-complete-hero h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(1.75rem, 5vw, 2.7rem);
+  font-weight: 950;
+  letter-spacing: -0.035em;
+  line-height: 1;
+}
+
+.level-complete-hero p:not(.eyebrow) {
+  max-width: 54ch;
+  margin-top: 10px;
+}
+
+.high-score-name {
+  color: var(--text) !important;
+}
+
+.completion-score {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.completion-score div {
+  padding: 14px 16px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.completion-score dt {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.completion-score dd {
+  margin: 3px 0 0;
+  color: var(--text);
+  font-size: 1.45rem;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+}
+
 .completion-records {
-  display: inline-block;
-  margin-top: 4px;
+  display: block;
+  min-height: 0;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.completion-records-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.completion-records-heading h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.25rem;
+}
+
+.completion-records .leaderboard-table {
+  margin-top: 10px;
+}
+
+.completion-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.completion-actions .game-button {
+  min-height: 52px;
+}
+
+.completion-secondary {
+  color: var(--text);
+  background: #e6e1eb;
+  box-shadow: 0 5px 0 rgba(67, 61, 79, 0.2);
+}
+
+.completion-primary {
+  background: #2259df;
+}
+
+.completion-primary:only-child {
+  grid-column: 1 / -1;
 }
 
 .leaderboard-panel header {
@@ -580,6 +709,27 @@ p {
     max-height: min(78dvh, 620px);
     border-radius: 14px 14px 0 0;
   }
+
+  .level-complete-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .level-complete-panel {
+    width: 100%;
+    max-height: 94dvh;
+    gap: 14px;
+    padding: 16px;
+    border-radius: 18px 18px 0 0;
+  }
+
+  .level-complete-hero {
+    padding: 18px;
+  }
+
+  .level-complete-hero h2 {
+    font-size: clamp(1.7rem, 9vw, 2.3rem);
+  }
 }
 
 @keyframes tile-exit-mobile {
@@ -610,6 +760,14 @@ p {
 
   .stats dd {
     font-size: 1.15rem;
+  }
+
+  .completion-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .completion-primary {
+    grid-row: 1;
   }
 }
 
