@@ -53,7 +53,7 @@ if (initialUnrelatedChanges.length > 0) {
 
 const tilesGameSha = runCapture("git", ["rev-parse", "--short", "HEAD"], process.cwd());
 
-run("npm", ["run", "sync:tiles-game"], roadcrosserRoot);
+run("npm", ["run", "sync:tiles-game:leaderboard"], roadcrosserRoot);
 
 const status = getRoadcrosserStatus();
 
