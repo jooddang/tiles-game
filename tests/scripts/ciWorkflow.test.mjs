@@ -8,7 +8,7 @@ test("default_branch_push_runs_ci_for_every_change", async () => {
     "utf8",
   );
   const pushTrigger = workflow.match(
-    /\n  push:\n([\s\S]*?)\n  workflow_dispatch:/,
+    /\n {2}push:\n([\s\S]*?)\n {2}workflow_dispatch:/,
   );
 
   assert.ok(pushTrigger, "workflow must define push before workflow_dispatch");
