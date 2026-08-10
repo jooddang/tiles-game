@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:ci-workflow": "node --test tests/scripts/ciWorkflow.test.mjs",
     "test:publish-safety": "node --test tests/scripts/publishRoadcrosserSafety.test.mjs",
+    "test:account-contracts": "node --test tests/account/scorePublicationContractSafety.test.mjs",
     "test:e2e": "playwright test",
     "test:e2e:leaderboard-contract": "playwright test --config playwright.contract.config.ts",
     "publish:roadcrosser": "node scripts/publish-roadcrosser.mjs --force"

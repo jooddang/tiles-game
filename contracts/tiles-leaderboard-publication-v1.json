@@ -1,0 +1,55 @@
+{
+  "contract": "roadcrosser.tiles.leaderboard-publication",
+  "version": 1,
+  "legacyEntry": {
+    "scoreId": "11111111-1111-4111-8111-111111111111",
+    "rank": 1,
+    "displayName": "Swift-Fox-202",
+    "elapsedSeconds": 12,
+    "achievedAt": "2026-08-10T00:00:00.000Z"
+  },
+  "accountEntry": {
+    "scoreId": "22222222-2222-4222-8222-222222222222",
+    "rank": 2,
+    "displayName": "Calm-Otter-101",
+    "elapsedSeconds": 14,
+    "achievedAt": "2026-08-10T00:01:00.000Z",
+    "identityKind": "account",
+    "accountName": "Player·A1B2",
+    "message": "I own this maze",
+    "messageState": "visible",
+    "publicationRevision": 1
+  },
+  "guestEntry": {
+    "scoreId": "33333333-3333-4333-8333-333333333333",
+    "rank": 3,
+    "displayName": "Brisk-Otter-303",
+    "elapsedSeconds": 16,
+    "achievedAt": "2026-08-10T00:02:00.000Z",
+    "identityKind": "guest",
+    "accountName": null,
+    "message": null,
+    "messageState": "none",
+    "publicationRevision": null
+  },
+  "malformedPublicationEntry": {
+    "scoreId": "44444444-4444-4444-8444-444444444444",
+    "rank": 4,
+    "displayName": "Quiet-Fox-404",
+    "elapsedSeconds": 18,
+    "achievedAt": "2026-08-10T00:03:00.000Z",
+    "identityKind": "account",
+    "accountName": "<script>",
+    "message": {
+      "unexpected": true
+    },
+    "messageState": "visible",
+    "publicationRevision": -1
+  },
+  "compatibility": {
+    "oldClientNewServer": "ignore publication fields and preserve the legacy entry",
+    "newClientOldServer": "render the legacy guest identity without fabricating an account or message",
+    "malformedPublication": "suppress publication fields and preserve the legacy score row"
+  }
+}
+

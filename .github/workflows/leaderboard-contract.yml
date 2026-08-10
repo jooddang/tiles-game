@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/leaderboard-contract.yml"
+      - "contracts/**"
       - "package-lock.json"
       - "package.json"
       - "playwright*.ts"
@@ -41,6 +42,9 @@ jobs:
 
       - name: Run unit tests
         run: npm test
+
+      - name: Verify account publication contract
+        run: npm run test:account-contracts
 
       - name: Verify CI trigger contract
         run: npm run test:ci-workflow
