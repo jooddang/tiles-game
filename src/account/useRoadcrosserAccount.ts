@@ -34,6 +34,8 @@ export function useRoadcrosserAccount(): AccountBridgeState {
   useEffect(() => {
     if (!enabled) return;
     channelIdRef.current = authBridgeChannel(window.location.hash);
+    let readyAcknowledged = false;
+    let readyTimer: ReturnType<typeof setInterval> | null = null;
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || event.source !== window.parent) return;
       const message = parseParentMessage(event.data);
@@ -42,13 +44,24 @@ export function useRoadcrosserAccount(): AccountBridgeState {
       if (message.type === "BRIDGE_INIT" || message.type === "ACCOUNT_STATUS") {
         const next = parseAccountSnapshot(message.payload, message.type === "ACCOUNT_STATUS");
         if (!next || next.authRevision <= lastRevisionRef.current) return;
+        readyAcknowledged = true;
+        if (readyTimer) clearInterval(readyTimer);
         lastRevisionRef.current = next.authRevision;
         setSnapshot(next);
       }
     };
     window.addEventListener("message", onMessage);
-    send("BRIDGE_READY", { supportedVersions: [AUTH_BRIDGE_VERSION], buildId: "tiles-0.1.0" });
-    return () => window.removeEventListener("message", onMessage);
+    const sendReady = () => {
+      if (!readyAcknowledged) {
+        send("BRIDGE_READY", { supportedVersions: [AUTH_BRIDGE_VERSION], buildId: "tiles-0.1.0" });
+      }
+    };
+    sendReady();
+    readyTimer = setInterval(sendReady, 250);
+    return () => {
+      if (readyTimer) clearInterval(readyTimer);
+      window.removeEventListener("message", onMessage);
+    };
   }, [enabled, send]);
 
   const requestSignIn = useCallback(() => {
