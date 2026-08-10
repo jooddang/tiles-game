@@ -1,5 +1,13 @@
 import { GameScreen } from "../game/GameScreen";
+import { AccountIndicator } from "../account/AccountIndicator";
+import { useRoadcrosserAccount } from "../account/useRoadcrosserAccount";
 
 export function App() {
-  return <GameScreen />;
+  const account = useRoadcrosserAccount();
+  return (
+    <>
+      {account.enabled ? <AccountIndicator snapshot={account.snapshot} onSignIn={account.requestSignIn} /> : null}
+      <GameScreen />
+    </>
+  );
 }

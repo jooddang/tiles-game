@@ -1,0 +1,55 @@
+{
+  "protocol": "roadcrosser.tiles.auth",
+  "version": 1,
+  "childMessages": [
+    {
+      "namespace": "roadcrosser.tiles.auth",
+      "version": 1,
+      "channelId": "123e4567-e89b-42d3-a456-426614174000",
+      "iframeInstanceId": "223e4567-e89b-42d3-a456-426614174000",
+      "messageId": "323e4567-e89b-42d3-a456-426614174000",
+      "type": "BRIDGE_READY",
+      "payload": { "supportedVersions": [1], "buildId": "tiles-0.1.0" }
+    },
+    {
+      "namespace": "roadcrosser.tiles.auth",
+      "version": 1,
+      "channelId": "123e4567-e89b-42d3-a456-426614174000",
+      "iframeInstanceId": "223e4567-e89b-42d3-a456-426614174000",
+      "messageId": "423e4567-e89b-42d3-a456-426614174000",
+      "type": "SIGN_IN_REQUEST",
+      "payload": {
+        "observedAuthGeneration": "523e4567-e89b-42d3-a456-426614174000",
+        "reason": "account-indicator"
+      }
+    }
+  ],
+  "parentMessages": [
+    {
+      "namespace": "roadcrosser.tiles.auth",
+      "version": 1,
+      "channelId": "123e4567-e89b-42d3-a456-426614174000",
+      "iframeInstanceId": "223e4567-e89b-42d3-a456-426614174000",
+      "messageId": "623e4567-e89b-42d3-a456-426614174000",
+      "type": "BRIDGE_INIT",
+      "payload": {
+        "authRevision": 1,
+        "authGeneration": "523e4567-e89b-42d3-a456-426614174000",
+        "account": { "state": "guest" }
+      }
+    },
+    {
+      "namespace": "roadcrosser.tiles.auth",
+      "version": 1,
+      "channelId": "123e4567-e89b-42d3-a456-426614174000",
+      "iframeInstanceId": "223e4567-e89b-42d3-a456-426614174000",
+      "messageId": "723e4567-e89b-42d3-a456-426614174000",
+      "type": "ACCOUNT_STATUS",
+      "payload": {
+        "authRevision": 2,
+        "authGeneration": "823e4567-e89b-42d3-a456-426614174000",
+        "account": { "state": "authenticated", "publicName": "Safe Player·A1B2" }
+      }
+    }
+  ]
+}
