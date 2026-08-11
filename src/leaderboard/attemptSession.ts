@@ -6,7 +6,7 @@ import {
   type ReplayCommand,
 } from "./protocol";
 
-const SESSION_KEY = "tiles-game-ranked-attempt-v1";
+export const LEGACY_ATTEMPT_SESSION_KEY = "tiles-game-ranked-attempt-v1";
 const MAX_COMMANDS = 1_200;
 
 export type StoredAttemptSession = {
@@ -21,11 +21,11 @@ export function loadAttemptSession(
     return null;
   }
   try {
-    const rawSession = storage.getItem(SESSION_KEY);
+    const rawSession = storage.getItem(LEGACY_ATTEMPT_SESSION_KEY);
     const parsed = JSON.parse(rawSession ?? "null") as unknown;
     if (!isRecord(parsed) || !isAttempt(parsed.attempt)) {
       if (rawSession !== null) {
-        storage.removeItem(SESSION_KEY);
+        storage.removeItem(LEGACY_ATTEMPT_SESSION_KEY);
       }
       return null;
     }
@@ -34,7 +34,7 @@ export function loadAttemptSession(
       parsed.commandLog.length > MAX_COMMANDS ||
       !parsed.commandLog.every(isReplayCommand)
     ) {
-      storage.removeItem(SESSION_KEY);
+      storage.removeItem(LEGACY_ATTEMPT_SESSION_KEY);
       return null;
     }
     return {
@@ -43,7 +43,7 @@ export function loadAttemptSession(
     };
   } catch {
     try {
-      storage.removeItem(SESSION_KEY);
+      storage.removeItem(LEGACY_ATTEMPT_SESSION_KEY);
     } catch {
       // A blocked cleanup surface remains non-recoverable.
     }
@@ -59,7 +59,7 @@ export function saveAttemptSession(
     return false;
   }
   try {
-    storage.setItem(SESSION_KEY, JSON.stringify(session));
+    storage.setItem(LEGACY_ATTEMPT_SESSION_KEY, JSON.stringify(session));
     return true;
   } catch {
     return false;
@@ -70,7 +70,7 @@ export function clearAttemptSession(
   storage: Storage | undefined = browserSessionStorage(),
 ) {
   try {
-    storage?.removeItem(SESSION_KEY);
+    storage?.removeItem(LEGACY_ATTEMPT_SESSION_KEY);
   } catch {
     // A blocked storage surface is equivalent to no recoverable session.
   }

@@ -71,6 +71,11 @@ export type AttemptStartResponse = {
   readonly startsAt: string;
   readonly expiresAt: string;
   readonly displayName: string;
+  /** Phase 3 adapter field. Legacy protocol-v2 servers omit it. */
+  readonly ownerBinding?: string;
+  /** Server-derived attempt authority; never inferred from current browser auth. */
+  readonly authorityKind?: "guest" | "account";
+  readonly accountName?: string;
 };
 
 export type AttemptCompleteRequest = {
