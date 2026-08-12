@@ -114,10 +114,48 @@ describe("ranked attempt journal", () => {
     await journal.terminalize(attempt.attemptId);
     expect(journal.navigationBlocked).toBe(false);
   });
+
+  it("degrades_honestly_when_IDB_fails_after_open_during_initial_enumeration", async () => {
+    const database: RankedOutboxDatabase = {
+      ...memoryDatabase(),
+      list: vi.fn(async () => { throw new DOMException("quota", "QuotaExceededError"); }),
+    };
+
+    const journal = await createRankedAttemptJournal(database);
+    expect(journal.durability).toBe("memory-only");
+    await expect(journal.beginStart(LEVEL, null)).resolves.toMatchObject({ operation: "start" });
+  });
+
+  it("persists_the_frozen_phase_and_purges_expired_attempts_from_restart_recovery", async () => {
+    const items = new Map<string, RankedOutboxItem>();
+    const database = memoryDatabaseFrom(items);
+    const firstTab = await createRankedAttemptJournal(database);
+    const intent = await firstTab.beginStart(LEVEL, null);
+    await firstTab.acceptStart(intent, attempt);
+    await firstTab.appendCommand(attempt, { type: "undo" });
+    await firstTab.freezeCompletion(attempt);
+
+    expect(items.get(`tiles:${attempt.attemptId}:complete`)).toMatchObject({ phase: "frozen" });
+    const stored = items.get(`tiles:${attempt.attemptId}:complete`);
+    if (!stored || stored.operation !== "complete") throw new Error("missing test completion");
+    items.set(stored.id, { ...stored, expiresAt: Date.now() - 1 });
+
+    const restartedTab = await createRankedAttemptJournal(database);
+    expect(await restartedTab.recoverableAttempts()).toEqual([]);
+    expect(items.has(stored.id)).toBe(false);
+  });
 });
 
 function memoryDatabase(events: string[] = [], failPut = false): RankedOutboxDatabase {
   const items = new Map<string, RankedOutboxItem>();
+  return memoryDatabaseFrom(items, events, failPut);
+}
+
+function memoryDatabaseFrom(
+  items: Map<string, RankedOutboxItem>,
+  events: string[] = [],
+  failPut = false,
+): RankedOutboxDatabase {
   return {
     put: vi.fn(async (item) => {
       if (failPut) throw new DOMException("denied", "SecurityError");

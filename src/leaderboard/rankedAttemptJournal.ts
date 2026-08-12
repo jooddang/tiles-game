@@ -37,20 +37,34 @@ export async function createRankedAttemptJournal(
 ): Promise<RankedAttemptJournal> {
   let durable = true;
   let resolvedDatabase = database;
+  const memory = new Map<string, StartIntentItem | CompletionOutboxItem>();
   try {
     resolvedDatabase ??= await openRankedOutbox();
-  } catch {
-    durable = false;
-  }
-  const memory = new Map<string, StartIntentItem | CompletionOutboxItem>();
-  if (resolvedDatabase) {
     await migrateLegacyAttemptSession(resolvedDatabase);
     for (const item of await resolvedDatabase.list()) {
       if (item.operation === "start" || item.operation === "complete") memory.set(item.id, item);
     }
+  } catch {
+    durable = false;
+    resolvedDatabase = undefined;
   }
   let queue = Promise.resolve();
-  let hasUnsecuredResult = false;
+
+  function hasUnsecuredResult() {
+    return [...memory.values()].some((item) => item.operation === "complete" && item.phase !== "playing");
+  }
+
+  async function read(id: string) {
+    const cached = memory.get(id);
+    if (cached || !resolvedDatabase) return cached;
+    try {
+      return await resolvedDatabase.get(id) ?? undefined;
+    } catch {
+      durable = false;
+      resolvedDatabase = undefined;
+      return undefined;
+    }
+  }
 
   async function write<T extends StartIntentItem | CompletionOutboxItem>(item: T): Promise<T> {
     memory.set(item.id, item);
@@ -85,7 +99,7 @@ export async function createRankedAttemptJournal(
 
   const journal: RankedAttemptJournal = {
     get durability() { return durable ? "durable" : "memory-only"; },
-    get navigationBlocked() { return !durable && hasUnsecuredResult; },
+    get navigationBlocked() { return !durable && hasUnsecuredResult(); },
     beginStart: (levelVersionId, authGeneration) => ordered(async () => {
       const requestId = crypto.randomUUID();
       const now = Date.now();
@@ -109,6 +123,7 @@ export async function createRankedAttemptJournal(
         createdAt: Date.now(),
         expiresAt: Date.parse(attempt.expiresAt) + 2 * 60 * 60_000,
         retryCount: 0,
+        phase: "playing",
       };
       await write(item);
       await remove(intent.id);
@@ -116,7 +131,7 @@ export async function createRankedAttemptJournal(
     }),
     appendCommand: (attempt, command) => ordered(async () => {
       const id = completionItemId(attempt.attemptId);
-      const current = memory.get(id) ?? await resolvedDatabase?.get(id);
+      const current = await read(id);
       if (!current || current.operation !== "complete") throw new Error("Ranked attempt journal missing");
       const item = { ...current, commandLog: [...current.commandLog, command] };
       await write(item);
@@ -124,23 +139,28 @@ export async function createRankedAttemptJournal(
     }),
     freezeCompletion: (attempt) => ordered(async () => {
       const id = completionItemId(attempt.attemptId);
-      const current = memory.get(id) ?? await resolvedDatabase?.get(id);
+      const current = await read(id);
       if (!current || current.operation !== "complete") throw new Error("Ranked attempt journal missing");
-      hasUnsecuredResult = true;
-      await write(current);
-      return current;
+      const item = { ...current, phase: "frozen" as const };
+      await write(item);
+      return item;
     }),
     recordReceipt: (attempt, result) => ordered(async () => {
       const id = completionItemId(attempt.attemptId);
-      const current = memory.get(id) ?? await resolvedDatabase?.get(id);
+      const current = await read(id);
       if (!current || current.operation !== "complete") throw new Error("Ranked attempt journal missing");
-      const item = { ...current, terminalResult: result };
+      const phase = result.accountBinding?.state === "pending"
+        ? "accepted_binding_pending" as const
+        : result.accountBinding?.state === "guest"
+          ? "guest_claimable" as const
+          : "frozen" as const;
+      const item = { ...current, terminalResult: result, phase };
       await write(item);
       return item;
     }),
     abandonUnplayed: (attemptId) => ordered(async () => {
       const id = completionItemId(attemptId);
-      const current = memory.get(id) ?? await resolvedDatabase?.get(id);
+      const current = await read(id);
       if (!current || current.operation !== "complete" || current.commandLog.length > 0 || current.terminalResult) {
         throw new Error("Only an unplayed attempt can be abandoned");
       }
@@ -148,16 +168,30 @@ export async function createRankedAttemptJournal(
     }),
     terminalize: (attemptId) => ordered(async () => {
       await remove(completionItemId(attemptId));
-      hasUnsecuredResult = false;
     }),
     itemForAttempt: (attemptId) => ordered(async () => {
       const id = completionItemId(attemptId);
-      const item = memory.get(id) ?? await resolvedDatabase?.get(id);
+      const item = await read(id);
       return item?.operation === "complete" ? item : null;
     }),
     recoverableAttempts: () => ordered(async () => {
-      const items = resolvedDatabase ? await resolvedDatabase.list() : [...memory.values()];
-      return items.filter((item): item is CompletionOutboxItem => item.operation === "complete");
+      let items = [...memory.values()];
+      if (resolvedDatabase) {
+        try {
+          items = (await resolvedDatabase.list()).filter(
+            (item): item is StartIntentItem | CompletionOutboxItem =>
+              item.operation === "start" || item.operation === "complete",
+          );
+        } catch {
+          durable = false;
+          resolvedDatabase = undefined;
+        }
+      }
+      const now = Date.now();
+      const expired = items.filter((item) => item.operation === "complete" && item.expiresAt <= now);
+      for (const item of expired) await remove(item.id);
+      return items.filter((item): item is CompletionOutboxItem =>
+        item.operation === "complete" && item.expiresAt > now);
     }),
   };
   return journal;

@@ -41,6 +41,7 @@ export type CompletionOutboxItem = {
   readonly createdAt: number;
   readonly expiresAt: number;
   readonly retryCount: number;
+  readonly phase: "playing" | "frozen" | "accepted_binding_pending" | "guest_claimable";
   readonly lastSafeErrorCode?: string;
   readonly terminalResult?: AccountAttemptCompleteResponse;
 };
@@ -251,6 +252,8 @@ export function isRankedOutboxItem(value: unknown): value is RankedOutboxItem {
       && value.ownerBinding.length >= 8 && Array.isArray(value.commandLog)
       && value.commandLog.length <= MAX_COMMANDS && value.commandLog.every(isReplayCommand)
       && Number.isSafeInteger(value.retryCount) && (value.retryCount as number) >= 0
+      && (value.phase === "playing" || value.phase === "frozen"
+        || value.phase === "accepted_binding_pending" || value.phase === "guest_claimable")
       && (value.terminalResult === undefined || isCompletionResult(value.terminalResult));
   }
   if (value.operation === "claim") {
@@ -296,6 +299,7 @@ function completionItemFromLegacy(session: StoredAttemptSession): CompletionOutb
     createdAt: Date.parse(session.attempt.startsAt),
     expiresAt: Math.max(Date.parse(session.attempt.expiresAt), Date.now() + 60_000),
     retryCount: 0,
+    phase: session.commandLog.length > 0 ? "frozen" : "playing",
   };
 }
 

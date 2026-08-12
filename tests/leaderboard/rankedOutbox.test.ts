@@ -30,6 +30,7 @@ function completion(): CompletionOutboxItem {
     createdAt: Date.parse(attempt.startsAt),
     expiresAt: Date.parse(attempt.expiresAt),
     retryCount: 0,
+    phase: "playing",
   };
 }
 
