@@ -88,6 +88,36 @@ describe("ranked attempt journal", () => {
     ]);
   });
 
+  it("keeps_a_guest_claimable_receipt_recoverable_after_the_old_two_hour_drain", async () => {
+    vi.useFakeTimers();
+    try {
+      const now = Date.parse("2026-08-11T00:00:00.000Z");
+      vi.setSystemTime(now);
+      const currentAttempt = { ...attempt,
+        startsAt: new Date(now).toISOString(),
+        expiresAt: new Date(now + 30 * 60_000).toISOString() };
+      const database = memoryDatabase();
+      const firstTab = await createRankedAttemptJournal(database);
+      const intent = await firstTab.beginStart(LEVEL, null);
+      await firstTab.acceptStart(intent, currentAttempt);
+      await firstTab.recordReceipt(currentAttempt, {
+        status: "published", submittedScoreId: "score-1", levelVersionId: LEVEL,
+        elapsedSeconds: 12, isPersonalBest: true,
+        personalBest: { scoreId: "score-1", elapsedSeconds: 12, rank: 1, isTopTen: true },
+        accountBinding: { state: "guest" },
+      });
+
+      vi.setSystemTime(now + 3 * 60 * 60_000);
+      const restartedTab = await createRankedAttemptJournal(database);
+      await expect(restartedTab.recoverableAttempts()).resolves.toEqual([
+        expect.objectContaining({ phase: "guest_claimable",
+          terminalResult: expect.objectContaining({ submittedScoreId: "score-1" }) }),
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("allows_only_an_unplayed_too_short_attempt_to_be_abandoned", async () => {
     const journal = await createRankedAttemptJournal(memoryDatabase());
     const intent = await journal.beginStart(LEVEL, null);

@@ -41,7 +41,7 @@ export type CompletionOutboxItem = {
   readonly createdAt: number;
   readonly expiresAt: number;
   readonly retryCount: number;
-  readonly phase: "playing" | "frozen" | "accepted_binding_pending" | "guest_claimable";
+  readonly phase: "playing" | "frozen" | "accepted_binding_pending" | "guest_claimable" | "account_linked";
   readonly lastSafeErrorCode?: string;
   readonly terminalResult?: AccountAttemptCompleteResponse;
 };
@@ -52,6 +52,9 @@ export type ClaimOutboxItem = {
   readonly scoreId: string;
   readonly ownerBinding: string;
   readonly requestId: string;
+  readonly claimRequestId: string;
+  readonly continuationId?: string;
+  readonly phase: "creating_continuation" | "awaiting_auth" | "claiming";
   readonly authGeneration: string | null;
   readonly createdAt: number;
   readonly expiresAt: number;
@@ -65,10 +68,11 @@ export type PublicationOutboxItem = {
   readonly scoreId: string;
   readonly ownerBinding: string;
   readonly requestId: string;
-  readonly authGeneration: string;
-  readonly accountName: string;
+  readonly authGeneration: string | null;
+  readonly accountName: string | null;
   readonly rawDraft: string;
   readonly canonicalMessage: string;
+  readonly phase: "draft" | "outcome_unknown";
   readonly expectedRevision: number | null;
   readonly createdAt: number;
   readonly expiresAt: number;
@@ -253,19 +257,26 @@ export function isRankedOutboxItem(value: unknown): value is RankedOutboxItem {
       && value.commandLog.length <= MAX_COMMANDS && value.commandLog.every(isReplayCommand)
       && Number.isSafeInteger(value.retryCount) && (value.retryCount as number) >= 0
       && (value.phase === "playing" || value.phase === "frozen"
-        || value.phase === "accepted_binding_pending" || value.phase === "guest_claimable")
+        || value.phase === "accepted_binding_pending" || value.phase === "guest_claimable"
+        || value.phase === "account_linked")
       && (value.terminalResult === undefined || isCompletionResult(value.terminalResult));
   }
   if (value.operation === "claim") {
     return typeof value.scoreId === "string" && typeof value.ownerBinding === "string"
       && typeof value.requestId === "string" && (value.authGeneration === null || typeof value.authGeneration === "string")
+      && typeof value.claimRequestId === "string"
+      && (value.continuationId === undefined || typeof value.continuationId === "string")
+      && (value.phase === "creating_continuation" || value.phase === "awaiting_auth" || value.phase === "claiming")
       && Number.isSafeInteger(value.retryCount) && (value.retryCount as number) >= 0;
   }
   if (value.operation === "publish") {
     return typeof value.scoreId === "string" && typeof value.ownerBinding === "string"
-      && typeof value.requestId === "string" && typeof value.authGeneration === "string"
-      && typeof value.accountName === "string" && typeof value.rawDraft === "string"
+      && typeof value.requestId === "string"
+      && (value.authGeneration === null || typeof value.authGeneration === "string")
+      && (value.accountName === null || typeof value.accountName === "string")
+      && typeof value.rawDraft === "string"
       && typeof value.canonicalMessage === "string"
+      && (value.phase === "draft" || value.phase === "outcome_unknown")
       && utf8Bytes(value.rawDraft) <= MAX_RAW_DRAFT_BYTES
       && utf8Bytes(value.canonicalMessage) <= MAX_CANONICAL_MESSAGE_BYTES
       && unicodeScalars(value.canonicalMessage) <= 100
@@ -331,7 +342,8 @@ function isAccountBinding(value: unknown): boolean {
   if (value.state === "guest") return true;
   if (value.state === "pending") return value.retryable === true;
   return value.state === "linked" && typeof value.scoreId === "string"
-    && (value.bestScoreId === null || typeof value.bestScoreId === "string");
+    && (value.bestScoreId === null || typeof value.bestScoreId === "string")
+    && typeof value.accountName === "string";
 }
 
 function isLevelVersion(value: unknown): value is string {

@@ -3,6 +3,10 @@ import { createPortal } from "react-dom";
 import type { AttemptState } from "../leaderboard/attemptMachine";
 import { RecordsContent } from "../leaderboard/LeaderboardPanel";
 import type { RecordsState } from "../leaderboard/useRankedAttempt";
+import type { AccountSnapshot } from "../account/protocol";
+import type { AccountAttemptCompleteResponse } from "../leaderboard/accountScoreProtocol";
+import type { LeaderboardClient } from "../leaderboard/leaderboardClient";
+import { ScoreLifecyclePanel } from "./ScoreLifecyclePanel";
 
 export type LevelCompletePanelProps = {
   readonly moves: number;
@@ -16,6 +20,10 @@ export type LevelCompletePanelProps = {
   readonly onTryRanked: () => void;
   readonly onContinue: () => void;
   readonly navigationBlocked?: boolean;
+  readonly accountSnapshot?: AccountSnapshot | null;
+  readonly accountClient?: LeaderboardClient;
+  readonly onSignIn?: () => void;
+  readonly signInAvailable?: boolean;
 };
 
 export function LevelCompletePanel({
@@ -30,6 +38,10 @@ export function LevelCompletePanel({
   onTryRanked,
   onContinue,
   navigationBlocked = false,
+  accountSnapshot,
+  accountClient,
+  onSignIn = () => undefined,
+  signInAvailable = false,
 }: LevelCompletePanelProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const result = attempt.status === "accepted" ? attempt.result : null;
@@ -144,6 +156,17 @@ export function LevelCompletePanel({
             </div>
             <RecordsContent records={records} onRefresh={onRefreshRecords} />
           </section>
+        ) : null}
+
+        {result && accountClient ? (
+          <ScoreLifecyclePanel
+            result={result as AccountAttemptCompleteResponse}
+            account={accountSnapshot}
+            client={accountClient}
+            onSignIn={onSignIn}
+            onRetryBinding={onRetrySubmission}
+            signInAvailable={signInAvailable}
+          />
         ) : null}
 
         <div className="completion-actions">

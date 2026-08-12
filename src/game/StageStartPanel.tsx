@@ -3,6 +3,7 @@ import type { AccountSnapshot } from "../account/protocol";
 export function StageStartPanel({
   snapshot,
   rankedAvailable,
+  signInAvailable,
   onSignIn,
   onContinue,
   onPractice,
@@ -10,6 +11,7 @@ export function StageStartPanel({
 }: {
   readonly snapshot: AccountSnapshot | null;
   readonly rankedAvailable: boolean;
+  readonly signInAvailable: boolean;
   readonly onSignIn: () => void;
   readonly onContinue: () => void;
   readonly onPractice: () => void;
@@ -27,13 +29,15 @@ export function StageStartPanel({
           <p>Connecting to your Roadcrosser Account…</p>
         ) : account?.state === "authenticated" ? (
           <p>Records can be saved as <strong>{account.publicName}</strong>.</p>
-        ) : account?.state === "guest" && rankedAvailable ? (
+        ) : account?.state === "guest" && rankedAvailable && signInAvailable ? (
           <p>Sign in to keep records across devices, or continue as a guest.</p>
+        ) : account?.state === "guest" && rankedAvailable ? (
+          <p>Continue as a guest. This standalone build has no account connection.</p>
         ) : (
           <p>Account records are unavailable right now. You can still play practice.</p>
         )}
         <div className="stage-start-actions">
-          {!startFailed && account?.state === "guest" && rankedAvailable ? (
+          {!startFailed && account?.state === "guest" && rankedAvailable && signInAvailable ? (
             <button type="button" className="game-button completion-primary" onClick={onSignIn}>
               Sign in &amp; save
             </button>

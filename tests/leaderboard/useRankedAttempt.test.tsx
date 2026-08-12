@@ -444,7 +444,8 @@ describe("useRankedAttempt", () => {
     const pendingResult = completionFor(LEVEL_A);
     const linkedResult = {
       ...pendingResult,
-      accountBinding: { state: "linked", scoreId: "score-1", bestScoreId: "score-1" } as const,
+      accountBinding: { state: "linked", scoreId: "score-1", bestScoreId: "score-1",
+        accountName: "Player·A1B2" } as const,
     };
     const completeAttempt = vi.fn().mockResolvedValue(linkedResult);
     const client = clientFake({

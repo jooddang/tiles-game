@@ -11,6 +11,8 @@ import {
   type StartIntentItem,
 } from "./rankedOutbox";
 
+const ACCOUNT_RECOVERY_TTL_MS = 7 * 24 * 60 * 60_000;
+
 export type JournalDurability = "durable" | "memory-only";
 
 export type RankedAttemptJournal = {
@@ -159,7 +161,10 @@ export async function createRankedAttemptJournal(
         : result.accountBinding?.state === "guest"
           ? "guest_claimable" as const
           : "frozen" as const;
-      const item = { ...current, terminalResult: result, phase };
+      const accountRecoveryExpiry = phase === "guest_claimable" || phase === "accepted_binding_pending"
+        ? Date.now() + ACCOUNT_RECOVERY_TTL_MS : current.expiresAt;
+      const item = { ...current, terminalResult: result, phase,
+        expiresAt: Math.max(current.expiresAt, accountRecoveryExpiry) };
       await write(item);
       return item;
     }),

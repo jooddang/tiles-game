@@ -328,7 +328,8 @@ function isAccountBinding(value: unknown): boolean {
   if (value.state === "guest") return true;
   if (value.state === "pending") return value.retryable === true;
   return value.state === "linked" && typeof value.scoreId === "string"
-    && (value.bestScoreId === null || typeof value.bestScoreId === "string");
+    && (value.bestScoreId === null || typeof value.bestScoreId === "string")
+    && typeof value.accountName === "string";
 }
 
 function isClaimContinuationResponse(value: unknown): value is ClaimContinuationResponse {

@@ -303,6 +303,17 @@ p {
 .stage-start-actions { display: grid; gap: 10px; margin-top: 22px; }
 .leaderboard-message { display: block; margin-top: 3px; color: var(--text-muted); font-size: 0.82rem; }
 
+.score-lifecycle {
+  padding: 16px;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.score-message-composer { display: grid; gap: 6px; margin-top: 12px; font-weight: 800; }
+.score-message-composer textarea { min-height: 82px; padding: 10px; resize: vertical; }
+.canonical-preview { padding: 9px; border-radius: 8px; background: #f0edf5; overflow-wrap: anywhere; }
+
 .leaderboard-panel {
   width: min(620px, 100%);
   max-height: min(700px, calc(100dvh - 40px));

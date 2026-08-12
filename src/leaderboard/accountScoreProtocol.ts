@@ -12,7 +12,8 @@ export const ACCOUNT_SCORE_ERROR_CODES = [
 
 export type AccountBinding =
   | { readonly state: "guest" }
-  | { readonly state: "linked"; readonly scoreId: string; readonly bestScoreId: string | null }
+  | { readonly state: "linked"; readonly scoreId: string; readonly bestScoreId: string | null;
+      readonly accountName: string }
   | { readonly state: "pending"; readonly retryable: true };
 
 export type AccountAttemptCompleteResponse = AttemptCompleteResponse & {

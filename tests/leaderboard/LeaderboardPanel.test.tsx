@@ -96,6 +96,23 @@ describe("LeaderboardPanel", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("renders_account_authority_and_an_inert_public_message_additively", () => {
+    const records = {
+      ...readyRecords,
+      leaderboard: { ...readyRecords.leaderboard, entries: [{
+        ...readyRecords.leaderboard.entries[0], identityKind: "account" as const,
+        accountName: "Player·A1B2", message: "<b>I own this maze</b>",
+        messageState: "visible" as const, publicationRevision: 1,
+      }] },
+    } as unknown as RecordsState;
+    renderPanel(records);
+    fireEvent.click(screen.getByRole("button", { name: "Records" }));
+
+    expect(screen.getByText("Player·A1B2")).toBeInTheDocument();
+    expect(screen.getByText("<b>I own this maze</b>")).toBeInTheDocument();
+    expect(document.querySelector(".leaderboard-message b")).toBeNull();
+  });
+
   it("shows_loading_empty_stale_and_unavailable_read_states", () => {
     const { rerender } = renderPanel({ status: "loading" });
     fireEvent.click(screen.getByRole("button", { name: "Records" }));

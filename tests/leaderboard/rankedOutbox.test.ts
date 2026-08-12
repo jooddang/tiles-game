@@ -125,6 +125,7 @@ describe("ranked IndexedDB outbox", () => {
       accountName: "Swift Fox",
       rawDraft: "hello",
       canonicalMessage: "hello",
+      phase: "draft" as const,
       expectedRevision: null,
       createdAt: 1,
       expiresAt: 2,

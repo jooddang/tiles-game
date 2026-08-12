@@ -266,12 +266,17 @@ export function GameScreen({
             }
           }}
           navigationBlocked={ranked.journalState.navigationBlocked}
+          accountSnapshot={effectiveAccountSnapshot}
+          accountClient={accountSnapshot === undefined ? undefined : leaderboardClient}
+          onSignIn={onSignIn}
+          signInAvailable={accountSnapshot !== undefined}
         />
       ) : null}
       {stageGateActive ? (
         <StageStartPanel
           snapshot={effectiveAccountSnapshot}
           rankedAvailable={leaderboardEnabled}
+          signInAvailable={accountSnapshot !== undefined}
           onSignIn={onSignIn}
           onContinue={() => {
             writeStageMode("ranked");

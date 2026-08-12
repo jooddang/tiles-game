@@ -1,0 +1,26 @@
+{
+  "contract": "roadcrosser.tiles.message-canonicalization",
+  "version": 1,
+  "canonicalizerVersion": 1,
+  "limits": { "scalars": 100, "graphemes": 100, "utf8Bytes": 400 },
+  "valid": [
+    { "name": "nfc-composition", "input": "Café", "output": { "normalized": "Café", "scalarCount": 4, "graphemeCount": 4, "byteCount": 5 } },
+    { "name": "all-line-separators", "input": "a\r\nb\rc\nde f g", "output": { "normalized": "a b c d e f g", "scalarCount": 13, "graphemeCount": 13, "byteCount": 13 } },
+    { "name": "ascii-whitespace", "input": "  alpha\t\u000b\f   beta  ", "output": { "normalized": "alpha beta", "scalarCount": 10, "graphemeCount": 10, "byteCount": 10 } },
+    { "name": "nbsp-is-not-ascii-whitespace", "input": " x ", "output": { "normalized": " x ", "scalarCount": 3, "graphemeCount": 3, "byteCount": 5 } },
+    { "name": "blank-removal", "input": " \t \r\n ", "output": { "normalized": "", "scalarCount": 0, "graphemeCount": 0, "byteCount": 0 } },
+    { "name": "emoji-grapheme", "input": "👍🏽", "output": { "normalized": "👍🏽", "scalarCount": 2, "graphemeCount": 1, "byteCount": 8 } },
+    { "name": "inert-markup-and-url", "input": "<b>x</b> [y](https://example.test)", "output": { "normalized": "<b>x</b> [y](https://example.test)", "scalarCount": 34, "graphemeCount": 34, "byteCount": 34 } },
+    { "name": "scalar-boundary", "inputParts": { "prefix": "x", "repeat": "́", "count": 99 }, "output": { "normalizedParts": { "prefix": "x", "repeat": "́", "count": 99 }, "scalarCount": 100, "graphemeCount": 1, "byteCount": 199 } },
+    { "name": "scalar-grapheme-byte-boundary", "inputParts": { "repeat": "😀", "count": 100 }, "output": { "normalizedParts": { "repeat": "😀", "count": 100 }, "scalarCount": 100, "graphemeCount": 100, "byteCount": 400 } }
+  ],
+  "invalid": [
+    { "name": "scalar-grapheme-101", "inputParts": { "repeat": "a", "count": 101 }, "errorCode": "MESSAGE_INVALID" },
+    { "name": "utf8-byte-401", "inputParts": { "repeat": "😀", "count": 100, "suffix": "a" }, "errorCode": "MESSAGE_INVALID" },
+    { "name": "cc-control", "input": "safe\u0000unsafe", "errorCode": "MESSAGE_INVALID" },
+    { "name": "cf-bidi-override", "input": "safe‮unsafe", "errorCode": "MESSAGE_INVALID" },
+    { "name": "cf-zwj", "input": "safe‍unsafe", "errorCode": "MESSAGE_INVALID" },
+    { "name": "cf-zwnj", "input": "safe‌unsafe", "errorCode": "MESSAGE_INVALID" },
+    { "name": "cs-lone-high-surrogate", "input": "safe\ud800unsafe", "errorCode": "MESSAGE_INVALID" }
+  ]
+}
