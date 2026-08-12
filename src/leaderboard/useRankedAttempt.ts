@@ -75,7 +75,7 @@ export function useRankedAttempt({
   });
   const [countdown, setCountdown] = useState<number>();
   const [rankedElapsedSeconds, setRankedElapsedSeconds] = useState<number>();
-  const [recoveryReady, setRecoveryReady] = useState(false);
+  const [recoveryReadyLevel, setRecoveryReadyLevel] = useState<string | null>(null);
   const [journalState, setJournalState] = useState<{
     readonly durability: JournalDurability;
     readonly navigationBlocked: boolean;
@@ -246,11 +246,11 @@ export function useRankedAttempt({
 
     if (!enabled || !levelVersionId) {
       setRecordsState({ status: "loading" });
-      setRecoveryReady(true);
+      setRecoveryReadyLevel(null);
       return;
     }
 
-    setRecoveryReady(false);
+    setRecoveryReadyLevel(null);
     setRecordsState({ status: "loading" });
     void refreshRecords();
 
@@ -296,7 +296,7 @@ export function useRankedAttempt({
           });
           mergeAuthoritativeResult(result, levelVersionId, session.attempt.displayName);
           dispatch({ type: "SUBMIT_SUCCEEDED", result });
-          setRecoveryReady(true);
+          setRecoveryReadyLevel(levelVersionId);
           void refreshRecords();
         },
         onTerminal: (error) => {
@@ -305,9 +305,9 @@ export function useRankedAttempt({
             syncJournalState(activeJournal);
           });
           dispatch({ type: "RECOVERY_FAILED", error });
-          setRecoveryReady(true);
+          setRecoveryReadyLevel(levelVersionId);
         },
-        onResumed: () => setRecoveryReady(true),
+        onResumed: () => setRecoveryReadyLevel(levelVersionId),
       });
       return true;
     };
@@ -317,14 +317,15 @@ export function useRankedAttempt({
       if (legacySession.attempt.levelVersionId === levelVersionId) {
         void getJournal().then(() => {
           if (flowGeneration === flowGenerationRef.current) {
-            if (!restoreSession(legacySession)) setRecoveryReady(true);
+            if (!restoreSession(legacySession)) setRecoveryReadyLevel(levelVersionId);
           }
         });
       } else {
-        setRecoveryReady(true);
+        setRecoveryReadyLevel(levelVersionId);
       }
     } else {
       void getJournal().then(async (activeJournal) => {
+        syncJournalState(activeJournal);
         const durable = (await activeJournal.recoverableAttempts())
           .filter((item) => item.attempt.levelVersionId === levelVersionId)
           .sort((left, right) => right.createdAt - left.createdAt)[0];
@@ -332,7 +333,7 @@ export function useRankedAttempt({
         const recovering = durable
           ? restoreSession({ attempt: durable.attempt, commandLog: durable.commandLog })
           : false;
-        if (!recovering) setRecoveryReady(true);
+        if (!recovering) setRecoveryReadyLevel(levelVersionId);
       });
     }
 
@@ -639,7 +640,7 @@ export function useRankedAttempt({
     countdown,
     rankedElapsedSeconds,
     journalState,
-    recoveryReady,
+    recoveryReady: !enabled || !levelVersionId || recoveryReadyLevel === levelVersionId,
     startRankedRun,
     cancelRankedRun,
     recordCommand,
