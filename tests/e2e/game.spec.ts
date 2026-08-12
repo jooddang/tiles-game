@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    window.sessionStorage.setItem("tiles-game-stage-choice-v1", "practice");
+  });
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();

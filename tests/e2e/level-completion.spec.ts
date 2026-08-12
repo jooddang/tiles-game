@@ -10,6 +10,9 @@ test("level_clear_shows_score_and_records_before_the_next_level", async ({
   page,
 }, testInfo) => {
   test.setTimeout(90_000);
+  await page.addInitScript(() => {
+    window.sessionStorage.setItem("tiles-game-stage-choice-v1", "practice");
+  });
   await page.route("**/api/tiles-game/leaderboard/**", async (route) => {
     const url = new URL(route.request().url());
     const levelVersionId = decodeURIComponent(

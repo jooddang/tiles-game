@@ -11,6 +11,9 @@ const viewports = [
 for (const viewport of viewports) {
   test(`records_fit_the_${viewport.name}_viewport`, async ({ page }, testInfo) => {
     await page.setViewportSize(viewport);
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem("tiles-game-stage-choice-v1", "practice");
+    });
     await page.route("**/api/tiles-game/leaderboard/**", async (route) => {
       const url = new URL(route.request().url());
       const levelVersionId = decodeURIComponent(

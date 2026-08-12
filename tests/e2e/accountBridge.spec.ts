@@ -6,8 +6,8 @@ test("the enabled Tile child completes the strict account bridge lifecycle", asy
   await page.route("**/__account-parent__", async (route) => {
     await route.fulfill({
       contentType: "text/html",
-      body: `<!doctype html><html><body>
-        <iframe id="game" src="/#rc-auth-v1=${channelId}"></iframe>
+      body: `<!doctype html><html><body style="margin:0">
+        <iframe id="game" style="display:block;width:100vw;height:100vh;border:0" src="/games/tiles-game/#rc-auth-v1=${channelId}"></iframe>
         <script>
           window.childMessages = [];
           window.addEventListener('message', (event) => {
@@ -57,7 +57,7 @@ test("the enabled Tile child completes the strict account bridge lifecycle", asy
 
   const gameFrame = page.frameLocator("#game");
   await expect(gameFrame.getByText("Guest play is available.")).toBeVisible();
-  await gameFrame.getByRole("button", { name: "Sign in" }).click();
+  await gameFrame.getByRole("button", { name: "Sign in & save", exact: true }).click();
   await expect.poll(() => page.evaluate(() =>
     (window as typeof window & { childMessages: Array<Record<string, unknown>> }).childMessages
       .find((message) => message.type === "SIGN_IN_REQUEST") ?? null

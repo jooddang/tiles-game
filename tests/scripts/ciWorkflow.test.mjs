@@ -15,3 +15,13 @@ test("default_branch_push_runs_ci_for_every_change", async () => {
   assert.match(pushTrigger[1], /branches: \[main\]/);
   assert.doesNotMatch(pushTrigger[1], /^\s+paths:/m);
 });
+
+test("browser CI enables the paired leaderboard and Roadcrosser bridge build", async () => {
+  const config = await readFile(
+    new URL("../../playwright.config.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(config, /VITE_TILES_LEADERBOARD_ENABLED=true/);
+  assert.match(config, /VITE_ROADCROSSER_AUTH_BRIDGE_ENABLED=true/);
+});
