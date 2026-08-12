@@ -20,26 +20,32 @@ const buildEnabled = (
 
 export function useRoadcrosserAccount(): AccountBridgeState {
   const [snapshot, setSnapshot] = useState<AccountSnapshot | null>(null);
+  const [channelId, setChannelId] = useState(() => authBridgeChannel(window.location.hash));
   const instanceIdRef = useRef(crypto.randomUUID());
-  const channelIdRef = useRef<string | null>(null);
   const lastRevisionRef = useRef(0);
-  const enabled = buildEnabled && window.parent !== window && authBridgeChannel(window.location.hash) !== null;
+  const enabled = buildEnabled && window.parent !== window && channelId !== null;
 
   const send = useCallback((type: "BRIDGE_READY" | "ACCOUNT_STATUS_REQUEST" | "SIGN_IN_REQUEST", payload: Record<string, unknown>) => {
-    const channelId = channelIdRef.current;
     if (!enabled || !channelId) return;
     window.parent.postMessage(childMessage(channelId, instanceIdRef.current, type, payload), window.location.origin);
-  }, [enabled]);
+  }, [channelId, enabled]);
+
+  useEffect(() => {
+    const observeChannel = () => setChannelId(authBridgeChannel(window.location.hash));
+    window.addEventListener("hashchange", observeChannel);
+    return () => window.removeEventListener("hashchange", observeChannel);
+  }, []);
 
   useEffect(() => {
     if (!enabled) return;
-    channelIdRef.current = authBridgeChannel(window.location.hash);
+    setSnapshot(null);
+    lastRevisionRef.current = 0;
     let readyAcknowledged = false;
     let readyTimer: ReturnType<typeof setInterval> | null = null;
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || event.source !== window.parent) return;
       const message = parseParentMessage(event.data);
-      if (!message || message.channelId !== channelIdRef.current
+      if (!message || message.channelId !== channelId
         || message.iframeInstanceId !== instanceIdRef.current) return;
       if (message.type === "BRIDGE_INIT" || message.type === "ACCOUNT_STATUS") {
         const next = parseAccountSnapshot(message.payload, message.type === "ACCOUNT_STATUS");
@@ -62,7 +68,7 @@ export function useRoadcrosserAccount(): AccountBridgeState {
       if (readyTimer) clearInterval(readyTimer);
       window.removeEventListener("message", onMessage);
     };
-  }, [enabled, send]);
+  }, [channelId, enabled, send]);
 
   const requestSignIn = useCallback(() => {
     if (!snapshot || snapshot.account.state !== "guest") return;

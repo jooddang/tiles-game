@@ -68,7 +68,8 @@ export function GameScreen({
       controller.gameState.status === "complete");
   const displayedElapsedSeconds =
     ranked.rankedElapsedSeconds ?? controller.elapsedSeconds;
-  const isLevelComplete = controller.gameState.status === "complete";
+  const isLevelComplete = controller.gameState.status === "complete"
+    || ranked.attemptState.status === "accepted";
   const rankedStartFailed = ranked.attemptState.status === "unavailable"
     || ranked.attemptState.status === "rejected";
   const stageGateActive = leaderboardEnabled && !isLevelComplete

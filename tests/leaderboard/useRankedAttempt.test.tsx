@@ -410,34 +410,60 @@ describe("useRankedAttempt", () => {
     expect(await restartedJournal.itemForAttempt(attempt.attemptId)).toBeNull();
   });
 
-  it("restores_a_guest_receipt_before_reporting_recovery_ready", async () => {
+  it("restores_a_guest_receipt_without_replay_or_a_second_server_submission", async () => {
     const items = new Map<string, RankedOutboxItem>();
     const database = journalDatabase(items);
     const firstTab = await createRankedAttemptJournal(database);
     const attempt = attemptFor(LEVEL_A, -2_000);
     const intent = await firstTab.beginStart(LEVEL_A, null);
     await firstTab.acceptStart(intent, attempt);
-    await firstTab.appendCommand(attempt, { type: "remove", tileId: "tile-a" });
+    for (let index = 0; index < 270; index += 1) {
+      await firstTab.appendCommand(attempt, { type: "remove", tileId: `tile-${index}` });
+    }
     await firstTab.recordReceipt(attempt, {
       ...completionFor(LEVEL_A),
       accountBinding: { state: "guest" },
     });
-    const status = deferred<Awaited<ReturnType<LeaderboardClient["getAttempt"]>>>();
-    const client = clientFake({ getAttempt: vi.fn(() => status.promise) });
+    const client = clientFake();
+    const restartedJournal = await createRankedAttemptJournal(database);
+    const { result } = renderHook(() => useRankedAttempt({
+      enabled: true, levelVersionId: LEVEL_A, client, journal: restartedJournal,
+      restoreCommands: () => false,
+    }));
+
+    expect(result.current.recoveryReady).toBe(false);
+    await waitFor(() => expect(result.current.attemptState.status).toBe("accepted"));
+    expect(result.current.recoveryReady).toBe(true);
+    expect(client.getAttempt).not.toHaveBeenCalled();
+    expect(client.completeAttempt).not.toHaveBeenCalled();
+    expect(await restartedJournal.itemForAttempt(attempt.attemptId)).toMatchObject({
+      phase: "guest_claimable",
+      terminalResult: { submittedScoreId: "score-1", accountBinding: { state: "guest" } },
+    });
+  });
+
+  it("fails_closed_when_a_durable_receipt_is_bound_to_another_level", async () => {
+    const items = new Map<string, RankedOutboxItem>();
+    const database = journalDatabase(items);
+    const firstTab = await createRankedAttemptJournal(database);
+    const attempt = attemptFor(LEVEL_A, -2_000);
+    const intent = await firstTab.beginStart(LEVEL_A, null);
+    await firstTab.acceptStart(intent, attempt);
+    await firstTab.recordReceipt(attempt, {
+      ...completionFor(LEVEL_B), accountBinding: { state: "guest" },
+    });
+    const client = clientFake();
     const restartedJournal = await createRankedAttemptJournal(database);
     const { result } = renderHook(() => useRankedAttempt({
       enabled: true, levelVersionId: LEVEL_A, client, journal: restartedJournal,
       restoreCommands: () => "complete",
     }));
 
-    expect(result.current.recoveryReady).toBe(false);
-    await waitFor(() => expect(result.current.attemptState.status).toBe("result_pending"));
-    expect(result.current.recoveryReady).toBe(false);
-    expect(result.current.attemptState.status).toBe("result_pending");
-    await act(async () => status.resolve({ status: "completed", result: completionFor(LEVEL_A),
-      accountBinding: { state: "guest" } }));
-    await waitFor(() => expect(result.current.attemptState.status).toBe("accepted"));
-    expect(result.current.recoveryReady).toBe(true);
+    await waitFor(() => expect(result.current.attemptState).toMatchObject({
+      status: "rejected", error: { code: "API_PROTOCOL_VERSION_MISMATCH" },
+    }));
+    expect(client.getAttempt).not.toHaveBeenCalled();
+    expect(client.completeAttempt).not.toHaveBeenCalled();
   });
 
   it("retains_an_accepted_receipt_while_account_binding_is_pending", async () => {

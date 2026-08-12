@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const channelId = "123e4567-e89b-42d3-a456-426614174000";
+const replacementChannelId = "323e4567-e89b-42d3-a456-426614174000";
 
 test("the enabled Tile child completes the strict account bridge lifecycle", async ({ page }) => {
   await page.route("**/__account-parent__", async (route) => {
@@ -69,4 +70,42 @@ test("the enabled Tile child completes the strict account bridge lifecycle", asy
     type: "SIGN_IN_REQUEST",
     payload: { observedAuthGeneration: "guest-generation-123456", reason: "account-indicator" },
   });
+});
+
+test("the Tile child re-handshakes when a login return replaces the bridge channel without reloading the document", async ({ page }) => {
+  await page.route("**/__account-parent__", async (route) => {
+    await route.fulfill({
+      contentType: "text/html",
+      body: `<!doctype html><html><body>
+        <iframe id="game" src="/games/tiles-game/#rc-auth-v1=${channelId}"></iframe>
+        <script>
+          window.childMessages = [];
+          window.addEventListener('message', (event) => {
+            if (event.origin === location.origin && event.source === document.querySelector('#game').contentWindow) {
+              window.childMessages.push(event.data);
+            }
+          });
+        </script>
+      </body></html>`,
+    });
+  });
+  await page.goto("/__account-parent__");
+  await expect.poll(() => page.evaluate((expectedChannel) =>
+    (window as typeof window & { childMessages?: Array<{ channelId?: string }> }).childMessages
+      ?.some((message) => message.channelId === expectedChannel), channelId)).toBe(true);
+
+  const originalDocumentMarker = await page.frameLocator("#game").locator("html").evaluate((html) => {
+    const marker = crypto.randomUUID();
+    html.dataset.documentMarker = marker;
+    return marker;
+  });
+  await page.locator("#game").evaluate((frame: HTMLIFrameElement, nextChannel) => {
+    frame.contentWindow!.location.hash = `rc-auth-v1=${nextChannel}`;
+  }, replacementChannelId);
+
+  await expect.poll(() => page.evaluate((nextChannel) =>
+    (window as typeof window & { childMessages?: Array<{ channelId?: string; type?: string }> }).childMessages
+      ?.some((message) => message.type === "BRIDGE_READY" && message.channelId === nextChannel), replacementChannelId)).toBe(true);
+  await expect(page.frameLocator("#game").locator("html"))
+    .toHaveAttribute("data-document-marker", originalDocumentMarker);
 });

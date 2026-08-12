@@ -330,6 +330,24 @@ export function useRankedAttempt({
           .filter((item) => item.attempt.levelVersionId === levelVersionId)
           .sort((left, right) => right.createdAt - left.createdAt)[0];
         if (flowGeneration !== flowGenerationRef.current) return;
+        if (durable?.terminalResult) {
+          try {
+            assertCompletionBinding(durable.terminalResult, durable.attempt);
+            // The server receipt is authoritative. Visual replay is best-effort:
+            // claim controls must remain reachable after a browser lifecycle.
+            restoreCommandsRef.current?.(durable.commandLog);
+            mergeAuthoritativeResult(
+              durable.terminalResult,
+              levelVersionId,
+              durable.attempt.displayName,
+            );
+            dispatch({ type: "RESTORE_ACCEPTED", result: durable.terminalResult });
+          } catch (error) {
+            dispatch({ type: "RECOVERY_FAILED", error: errorDetail(error) });
+          }
+          setRecoveryReadyLevel(levelVersionId);
+          return;
+        }
         const recovering = durable
           ? restoreSession({ attempt: durable.attempt, commandLog: durable.commandLog })
           : false;

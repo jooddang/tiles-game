@@ -50,6 +50,7 @@ export type AttemptAction =
   | { readonly type: "COMMAND_RECORDED"; readonly command: ReplayCommand }
   | { readonly type: "RUN_COMPLETED" }
   | { readonly type: "SUBMIT_SUCCEEDED"; readonly result: AttemptCompleteResponse }
+  | { readonly type: "RESTORE_ACCEPTED"; readonly result: AttemptCompleteResponse }
   | {
       readonly type: "SUBMIT_FAILED";
       readonly error: PublicErrorResponse["error"];
@@ -107,6 +108,10 @@ export function attemptReducer(
         state.status === "result_pending"
         ? { status: "accepted", result: action.result }
         : state;
+    case "RESTORE_ACCEPTED":
+      return state.status === "unranked"
+        ? { status: "accepted", result: action.result }
+        : state;
     case "SUBMIT_FAILED":
       if (
         state.status !== "submitting" &&
@@ -142,7 +147,8 @@ export function attemptReducer(
           }
         : state;
     case "RECOVERY_FAILED":
-      return state.status === "countdown" ||
+      return state.status === "unranked" ||
+        state.status === "countdown" ||
         state.status === "active" ||
         state.status === "result_pending" ||
         state.status === "retry_available"
