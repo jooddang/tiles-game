@@ -160,6 +160,29 @@ describe("score claim and publication lifecycle", () => {
     expect(result.current.state).toMatchObject({ claim: "claimed", publicHandle: "Player·A1B2" });
   });
 
+  it("does_not_block_server_reconciliation_on_an_advisory_claiming_marker_write", async () => {
+    const database = memoryDatabase();
+    const originalPut = database.put;
+    Object.assign(database, { put: async (item: RankedOutboxItem) => {
+      if (item.operation === "claim" && item.phase === "claiming") {
+        return new Promise<void>(() => undefined);
+      }
+      return originalPut(item);
+    } });
+    const client = clientFake();
+    const { result, rerender } = renderHook(({ account }: { account: AccountSnapshot }) =>
+      useScoreLifecycle({ result: guestResult, account, client, onSignIn: vi.fn(), database }),
+      { initialProps: { account: guest } },
+    );
+    await waitFor(() => expect(result.current.state.claim).toBe("guest_accepted"));
+    await act(async () => { await result.current.startClaim(); });
+    rerender({ account: accountA });
+
+    await waitFor(() => expect(result.current.state.claim).toBe("confirm_claim"));
+    expect(client.getClaimStatus).toHaveBeenCalledTimes(1);
+    expect(client.claimScore).not.toHaveBeenCalled();
+  });
+
   it("parks_a_claim_when_the_confirmed_auth_generation_switches", async () => {
     const database = memoryDatabase();
     const client = clientFake();

@@ -123,11 +123,9 @@ export function useScoreLifecycle({
       return;
     }
     setState((current) => ({ ...current, claim: "claiming", error: undefined }));
-    const db = await getDatabase();
     const claiming = { ...item, authGeneration: snapshot.authGeneration, phase: "claiming" as const };
     claimRef.current = claiming;
     try {
-      await db?.put(claiming);
       const status = await client.getClaimStatus(item.scoreId, item.requestId);
       if (status.status === "claimed") {
         await finishClaim(authenticatedAccount.publicName, snapshot.authGeneration,
@@ -148,7 +146,7 @@ export function useScoreLifecycle({
       } catch { /* Preserve the exact claim item for explicit recovery. */ }
       setState((current) => ({ ...current, claim: "error", error: safeMessage(error) }));
     }
-  }, [client, finishClaim, getDatabase]);
+  }, [client, finishClaim]);
 
   const confirmClaim = useCallback(async () => {
     const item = claimRef.current;
@@ -159,6 +157,11 @@ export function useScoreLifecycle({
     }
     setState((value) => ({ ...value, claim: "claiming", error: undefined }));
     try {
+      const db = await getDatabase();
+      if (!db) throw new Error("Account linking could not be secured on this device");
+      // Persist the account-bound mutation intent before the server write. The
+      // earlier status read must not wait on this advisory phase transition.
+      await withDeadline(db.put(item));
       const receipt = await client.claimScore(item.scoreId, item.requestId, item.claimRequestId);
       await finishClaim(receipt.publicHandle, account.authGeneration, receipt.bestScoreId);
     } catch (error) {
@@ -172,7 +175,7 @@ export function useScoreLifecycle({
       } catch { /* Exact item remains retryable. */ }
       setState((value) => ({ ...value, claim: "error", error: safeMessage(error) }));
     }
-  }, [account, client, finishClaim]);
+  }, [account, client, finishClaim, getDatabase]);
 
   useEffect(() => {
     if (!scoreId || !result) {
@@ -187,9 +190,14 @@ export function useScoreLifecycle({
         item.operation === "claim" && item.scoreId === scoreId) as ClaimOutboxItem | undefined) ?? null;
       const liveClaim = claim && claim.expiresAt > Date.now() ? claim : null;
       if (claim && !liveClaim) void db?.delete(claim.id).catch(() => undefined);
+      const inMemoryClaim = claimRef.current;
+      const activeClaim = inMemoryClaim?.scoreId === scoreId
+        && inMemoryClaim.expiresAt > Date.now()
+        && inMemoryClaim.authGeneration !== null
+        ? inMemoryClaim : liveClaim;
       const publication = ((items ?? []).find((item) =>
         item.operation === "publish" && item.scoreId === scoreId) as PublicationOutboxItem | undefined) ?? null;
-      claimRef.current = liveClaim;
+      claimRef.current = activeClaim;
       publicationRef.current = publication;
       publicationGenerationRef.current += 1;
       const binding = result.accountBinding;
@@ -209,9 +217,9 @@ export function useScoreLifecycle({
           canPublish: account?.account.state === "authenticated"
             && account.account.publicName === terminalHandle,
         }) : ({ ...value,
-          claim: liveClaim?.phase === "creating_continuation" ? "error"
-            : liveClaim ? "awaiting_auth" : "guest_accepted",
-          error: liveClaim?.phase === "creating_continuation"
+          claim: activeClaim?.phase === "creating_continuation" ? "error"
+            : activeClaim ? "awaiting_auth" : "guest_accepted",
+          error: activeClaim?.phase === "creating_continuation"
             ? "Account linking needs to resume with the saved request." : value.error,
         }));
       } else if (binding?.state === "pending") {
@@ -227,7 +235,7 @@ export function useScoreLifecycle({
             && publication.accountName === account.account.publicName,
           draft: publication.rawDraft, canonicalPreview: publication.canonicalMessage }));
       }
-      if (liveClaim && account) await reconcileClaim(liveClaim, account);
+      if (activeClaim && account) await reconcileClaim(activeClaim, account);
     });
     return () => { current = false; };
   }, [account, getDatabase, reconcileClaim, result, scoreId]);
