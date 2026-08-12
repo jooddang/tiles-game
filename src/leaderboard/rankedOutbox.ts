@@ -7,10 +7,10 @@ import {
   API_PROTOCOL_VERSION,
   REPLAY_CONTRACT_VERSION,
   isReplayCommand,
-  type AttemptCompleteResponse,
   type AttemptStartResponse,
   type ReplayCommand,
 } from "./protocol";
+import type { AccountAttemptCompleteResponse } from "./accountScoreProtocol";
 
 const DATABASE_NAME = "roadcrosser-tiles-ranked";
 const DATABASE_VERSION = 1;
@@ -19,12 +19,15 @@ const LEASE_STORE = "leases";
 const QUARANTINE_STORE = "quarantine";
 const MAX_COMMANDS = 1_200;
 const MAX_QUARANTINE_BYTES = 64_000;
+const MAX_RAW_DRAFT_BYTES = 4_096;
+const MAX_CANONICAL_MESSAGE_BYTES = 400;
 
 export type StartIntentItem = {
   readonly id: string;
   readonly operation: "start";
   readonly requestId: string;
   readonly levelVersionId: string;
+  readonly authGeneration: string | null;
   readonly createdAt: number;
   readonly expiresAt: number;
 };
@@ -39,7 +42,7 @@ export type CompletionOutboxItem = {
   readonly expiresAt: number;
   readonly retryCount: number;
   readonly lastSafeErrorCode?: string;
-  readonly terminalResult?: AttemptCompleteResponse;
+  readonly terminalResult?: AccountAttemptCompleteResponse;
 };
 
 export type ClaimOutboxItem = {
@@ -207,21 +210,48 @@ export function publicationItemId(scoreId: string) {
   return `tiles:${scoreId}:publish`;
 }
 
+export function partitionRankedOutbox(
+  items: readonly RankedOutboxItem[],
+  ownerBinding: string | null,
+  authGeneration: string | null,
+  now = Date.now(),
+) {
+  const expired: RankedOutboxItem[] = [];
+  const runnable: RankedOutboxItem[] = [];
+  const parked: RankedOutboxItem[] = [];
+  for (const item of items) {
+    if (item.expiresAt <= now) {
+      expired.push(item);
+      continue;
+    }
+    if (item.operation === "start") {
+      (item.authGeneration === authGeneration ? runnable : parked).push(item);
+      continue;
+    }
+    const ownerMatches = item.ownerBinding === ownerBinding;
+    const authMatches = item.operation === "complete" || item.authGeneration === authGeneration;
+    (ownerMatches && authMatches ? runnable : parked).push(item);
+  }
+  return { runnable, parked, expired } as const;
+}
+
 export function attemptOwnerBinding(attempt: AttemptStartResponse): string {
-  return attempt.ownerBinding ?? `legacy-attempt:${attempt.attemptId}`;
+  return `attempt:${attempt.attemptId}`;
 }
 
 export function isRankedOutboxItem(value: unknown): value is RankedOutboxItem {
   if (!isRecord(value) || typeof value.id !== "string" || typeof value.operation !== "string") return false;
   if (!isFiniteTime(value.createdAt) || !isFiniteTime(value.expiresAt) || value.expiresAt <= value.createdAt) return false;
   if (value.operation === "start") {
-    return typeof value.requestId === "string" && isLevelVersion(value.levelVersionId);
+    return typeof value.requestId === "string" && isLevelVersion(value.levelVersionId)
+      && (value.authGeneration === null || typeof value.authGeneration === "string");
   }
   if (value.operation === "complete") {
     return isAttempt(value.attempt) && typeof value.ownerBinding === "string"
       && value.ownerBinding.length >= 8 && Array.isArray(value.commandLog)
       && value.commandLog.length <= MAX_COMMANDS && value.commandLog.every(isReplayCommand)
-      && Number.isSafeInteger(value.retryCount) && (value.retryCount as number) >= 0;
+      && Number.isSafeInteger(value.retryCount) && (value.retryCount as number) >= 0
+      && (value.terminalResult === undefined || isCompletionResult(value.terminalResult));
   }
   if (value.operation === "claim") {
     return typeof value.scoreId === "string" && typeof value.ownerBinding === "string"
@@ -233,10 +263,27 @@ export function isRankedOutboxItem(value: unknown): value is RankedOutboxItem {
       && typeof value.requestId === "string" && typeof value.authGeneration === "string"
       && typeof value.accountName === "string" && typeof value.rawDraft === "string"
       && typeof value.canonicalMessage === "string"
+      && utf8Bytes(value.rawDraft) <= MAX_RAW_DRAFT_BYTES
+      && utf8Bytes(value.canonicalMessage) <= MAX_CANONICAL_MESSAGE_BYTES
+      && unicodeScalars(value.canonicalMessage) <= 100
+      && graphemeCount(value.canonicalMessage) <= 100
       && (value.expectedRevision === null || Number.isSafeInteger(value.expectedRevision))
       && Number.isSafeInteger(value.retryCount) && (value.retryCount as number) >= 0;
   }
   return false;
+}
+
+function utf8Bytes(value: string): number {
+  return new TextEncoder().encode(value).byteLength;
+}
+
+function unicodeScalars(value: string): number {
+  return [...value].length;
+}
+
+function graphemeCount(value: string): number {
+  if (typeof Intl.Segmenter !== "function") return unicodeScalars(value);
+  return [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(value)].length;
 }
 
 function completionItemFromLegacy(session: StoredAttemptSession): CompletionOutboxItem {
@@ -260,6 +307,27 @@ function isAttempt(value: unknown): value is AttemptStartResponse {
     && typeof value.startsAt === "string" && Number.isFinite(Date.parse(value.startsAt))
     && typeof value.expiresAt === "string" && Number.isFinite(Date.parse(value.expiresAt))
     && typeof value.displayName === "string";
+}
+
+function isCompletionResult(value: unknown): value is AccountAttemptCompleteResponse {
+  return isRecord(value) && (value.status === "published" || value.status === "under_review")
+    && typeof value.submittedScoreId === "string" && typeof value.levelVersionId === "string"
+    && Number.isSafeInteger(value.elapsedSeconds) && (value.elapsedSeconds as number) >= 0
+    && typeof value.isPersonalBest === "boolean"
+    && (value.personalBest === null || (isRecord(value.personalBest)
+      && typeof value.personalBest.scoreId === "string"
+      && Number.isSafeInteger(value.personalBest.elapsedSeconds)
+      && Number.isSafeInteger(value.personalBest.rank)
+      && typeof value.personalBest.isTopTen === "boolean"))
+    && (value.accountBinding === undefined || isAccountBinding(value.accountBinding));
+}
+
+function isAccountBinding(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  if (value.state === "guest") return true;
+  if (value.state === "pending") return value.retryable === true;
+  return value.state === "linked" && typeof value.scoreId === "string"
+    && (value.bestScoreId === null || typeof value.bestScoreId === "string");
 }
 
 function isLevelVersion(value: unknown): value is string {

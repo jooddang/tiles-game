@@ -15,6 +15,7 @@ export type LevelCompletePanelProps = {
   readonly onRetrySubmission: () => void;
   readonly onTryRanked: () => void;
   readonly onContinue: () => void;
+  readonly navigationBlocked?: boolean;
 };
 
 export function LevelCompletePanel({
@@ -28,6 +29,7 @@ export function LevelCompletePanel({
   onRetrySubmission,
   onTryRanked,
   onContinue,
+  navigationBlocked = false,
 }: LevelCompletePanelProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const result = attempt.status === "accepted" ? attempt.result : null;
@@ -145,11 +147,17 @@ export function LevelCompletePanel({
         ) : null}
 
         <div className="completion-actions">
+          {navigationBlocked ? (
+            <p className="notice" role="alert">
+              Keep this tab open — your record is not secured yet. Retry after browser storage recovers.
+            </p>
+          ) : null}
           {leaderboardEnabled ? (
             <button
               type="button"
               className="game-button completion-secondary"
               onClick={onTryRanked}
+              disabled={navigationBlocked}
             >
               {attempt.status === "accepted" ? "Replay ranked" : "Try ranked"}
             </button>
@@ -166,6 +174,7 @@ export function LevelCompletePanel({
             type="button"
             className="game-button completion-primary"
             onClick={onContinue}
+            disabled={navigationBlocked}
           >
             {canGoNext ? "Next level" : "Play again"}
           </button>

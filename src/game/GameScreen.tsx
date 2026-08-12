@@ -53,6 +53,7 @@ export function GameScreen({
     restoreCommands: controller.restoreCommandLog,
   });
   const rankedControlsFrozen =
+    ranked.journalState.navigationBlocked ||
     ranked.attemptState.status === "result_pending" ||
     (isRankedGameplayFrozen(ranked.attemptState) &&
       controller.gameState.status === "complete");
@@ -240,6 +241,7 @@ export function GameScreen({
               controller.restart();
             }
           }}
+          navigationBlocked={ranked.journalState.navigationBlocked}
         />
       ) : null}
     </main>

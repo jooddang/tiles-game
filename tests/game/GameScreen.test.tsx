@@ -267,17 +267,17 @@ describe("GameScreen", () => {
     vi.useFakeTimers();
     fireEvent.click(screen.getByRole("button", { name: "Start ranked run" }));
     await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
+      // Ranked start now waits for the start intent and accepted attempt to be
+      // durably journaled before gameplay can begin.
+      for (let index = 0; index < 30; index += 1) await Promise.resolve();
       vi.advanceTimersByTime(4_100);
-      await Promise.resolve();
+      for (let index = 0; index < 4; index += 1) await Promise.resolve();
     });
     fireEvent.click(screen.getByRole("button", { name: /Tile test-a arrow up/i }));
     fireEvent.click(screen.getByRole("button", { name: /Tile test-b arrow up/i }));
 
     await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
+      for (let index = 0; index < 8; index += 1) await Promise.resolve();
     });
 
     expect(
@@ -430,5 +430,10 @@ function createLeaderboardClientFake(): LeaderboardClient {
         isTopTen: true,
       },
     })),
+    createClaimContinuation: vi.fn(),
+    claimScore: vi.fn(),
+    getClaimStatus: vi.fn(),
+    publishScore: vi.fn(),
+    getPublication: vi.fn(),
   };
 }

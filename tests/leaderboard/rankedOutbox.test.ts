@@ -5,6 +5,8 @@ import {
   completionItemId,
   migrateLegacyAttemptSession,
   openRankedOutbox,
+  partitionRankedOutbox,
+  publicationItemId,
   type CompletionOutboxItem,
 } from "../../src/leaderboard/rankedOutbox";
 
@@ -95,6 +97,46 @@ describe("ranked IndexedDB outbox", () => {
     await expect(database.acquireLease("item", "tab-b", 1_501, 500)).resolves.toBe(2);
     await database.releaseLease("item", "tab-a", 1);
     await expect(database.acquireLease("item", "tab-c", 1_600, 500)).resolves.toBeNull();
+  });
+
+  it("parks_items_from_another_owner_or_auth_generation_and_separates_expiry", () => {
+    const now = 10_000;
+    const own = { ...completion(), ownerBinding: "owner-a", createdAt: 1, expiresAt: now + 1 };
+    const other = { ...completion(), id: "other", ownerBinding: "owner-b", createdAt: 1, expiresAt: now + 1 };
+    const expired = { ...completion(), id: "expired", ownerBinding: "owner-a", createdAt: 1, expiresAt: now };
+
+    expect(partitionRankedOutbox([own, other, expired], "owner-a", "auth-a", now)).toEqual({
+      runnable: [own],
+      parked: [other],
+      expired: [expired],
+    });
+  });
+
+  it("bounds_private_raw_and_canonical_publication_drafts_before_persistence", async () => {
+    const database = await openRankedOutbox(new IDBFactory());
+    const base = {
+      id: publicationItemId("score-1"),
+      operation: "publish" as const,
+      scoreId: "score-1",
+      ownerBinding: "owner-binding",
+      requestId: "request-1",
+      authGeneration: "auth-1",
+      accountName: "Swift Fox",
+      rawDraft: "hello",
+      canonicalMessage: "hello",
+      expectedRevision: null,
+      createdAt: 1,
+      expiresAt: 2,
+      retryCount: 0,
+    };
+
+    await expect(database.put(base)).resolves.toBeUndefined();
+    await expect(database.put({ ...base, rawDraft: "x".repeat(4_097) })).rejects.toThrow(
+      "Invalid ranked outbox item",
+    );
+    await expect(database.put({ ...base, canonicalMessage: "💧".repeat(101) })).rejects.toThrow(
+      "Invalid ranked outbox item",
+    );
   });
 });
 

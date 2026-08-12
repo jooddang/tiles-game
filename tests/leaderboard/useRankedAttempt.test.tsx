@@ -7,6 +7,8 @@ import type {
   AttemptStartResponse,
 } from "../../src/leaderboard/protocol";
 import { useRankedAttempt } from "../../src/leaderboard/useRankedAttempt";
+import { createRankedAttemptJournal } from "../../src/leaderboard/rankedAttemptJournal";
+import type { RankedOutboxDatabase, RankedOutboxItem } from "../../src/leaderboard/rankedOutbox";
 
 const LEVEL_A = `sha256:${"a".repeat(64)}`;
 const LEVEL_B = `sha256:${"b".repeat(64)}`;
@@ -354,6 +356,88 @@ describe("useRankedAttempt", () => {
     });
   });
 
+  it("retries_a_failed_start_with_the_same_UUID_already_in_the_durable_journal", async () => {
+    const items = new Map<string, RankedOutboxItem>();
+    const put = vi.fn(async (item: RankedOutboxItem) => { items.set(item.id, item); });
+    const database: RankedOutboxDatabase = {
+      put,
+      get: async (id) => items.get(id) ?? null,
+      list: async () => [...items.values()],
+      delete: async (id) => { items.delete(id); },
+      acquireLease: async () => 1,
+      releaseLease: async () => undefined,
+      quarantineLegacy: async () => undefined,
+    };
+    const journal = await createRankedAttemptJournal(database);
+    const startAttempt = vi.fn()
+      .mockRejectedValueOnce(new TypeError("offline"))
+      .mockResolvedValueOnce(attemptFor(LEVEL_A));
+    const client = clientFake({ startAttempt });
+    const { result } = renderHook(() =>
+      useRankedAttempt({ enabled: true, levelVersionId: LEVEL_A, client, journal }),
+    );
+    await settleReads();
+
+    await act(async () => { await result.current.startRankedRun(); });
+    await act(async () => { await result.current.startRankedRun(); });
+
+    expect(startAttempt).toHaveBeenCalledTimes(2);
+    expect(startAttempt.mock.calls[0][1]).toBe(startAttempt.mock.calls[1][1]);
+    expect(put.mock.invocationCallOrder[0]).toBeLessThan(startAttempt.mock.invocationCallOrder[0]);
+  });
+
+  it("enumerates_and_converges_a_durable_completion_after_browser_restart", async () => {
+    const items = new Map<string, RankedOutboxItem>();
+    const database = journalDatabase(items);
+    const firstTab = await createRankedAttemptJournal(database);
+    const attempt = attemptFor(LEVEL_A, -2_000);
+    const intent = await firstTab.beginStart(LEVEL_A, null);
+    await firstTab.acceptStart(intent, attempt);
+    await firstTab.appendCommand(attempt, { type: "remove", tileId: "tile-a" });
+    await firstTab.freezeCompletion(attempt);
+    const restartedJournal = await createRankedAttemptJournal(database);
+    const completion = completionFor(LEVEL_A);
+    const client = clientFake({
+      getAttempt: vi.fn().mockResolvedValue({ status: "completed", result: completion }),
+    });
+
+    const { result } = renderHook(() => useRankedAttempt({
+      enabled: true, levelVersionId: LEVEL_A, client, journal: restartedJournal,
+      restoreCommands: () => "complete",
+    }));
+
+    await waitFor(() => expect(result.current.attemptState.status).toBe("accepted"));
+    expect(await restartedJournal.itemForAttempt(attempt.attemptId)).toBeNull();
+  });
+
+  it("retains_an_accepted_receipt_while_account_binding_is_pending", async () => {
+    vi.useFakeTimers();
+    const items = new Map<string, RankedOutboxItem>();
+    const journal = await createRankedAttemptJournal(journalDatabase(items));
+    const attempt = attemptFor(LEVEL_A, 100);
+    const completion = {
+      ...completionFor(LEVEL_A), accountBinding: { state: "pending", retryable: true } as const,
+    };
+    const client = clientFake({
+      startAttempt: vi.fn().mockResolvedValue(attempt),
+      completeAttempt: vi.fn().mockResolvedValue(completion),
+    });
+    const { result } = renderHook(() =>
+      useRankedAttempt({ enabled: true, levelVersionId: LEVEL_A, client, journal }),
+    );
+    await settleReads();
+    await act(async () => {
+      await result.current.startRankedRun();
+      vi.advanceTimersByTime(200);
+      await Promise.resolve();
+    });
+    act(() => result.current.recordCommand({ type: "remove", tileId: "tile-a" }, true));
+    vi.useRealTimers();
+
+    await waitFor(() => expect(result.current.attemptState.status).toBe("accepted"));
+    expect(await journal.itemForAttempt(attempt.attemptId)).toMatchObject({ terminalResult: completion });
+  });
+
   it("keeps_an_active_ranked_run_on_server_time_when_the_page_is_hidden", async () => {
     vi.useFakeTimers();
     const client = clientFake({
@@ -621,4 +705,16 @@ async function settleReads() {
     await Promise.resolve();
     await Promise.resolve();
   });
+}
+
+function journalDatabase(items: Map<string, RankedOutboxItem>): RankedOutboxDatabase {
+  return {
+    put: async (item) => { items.set(item.id, item); },
+    get: async (id) => items.get(id) ?? null,
+    list: async () => [...items.values()],
+    delete: async (id) => { items.delete(id); },
+    acquireLease: async () => 1,
+    releaseLease: async () => undefined,
+    quarantineLegacy: async () => undefined,
+  };
 }

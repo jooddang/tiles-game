@@ -5,6 +5,11 @@ import test from "node:test";
 
 const bytes = readFileSync(new URL("../../contracts/tiles-leaderboard-publication-v1.json", import.meta.url));
 const fixture = JSON.parse(bytes.toString("utf8"));
+const accountScoreBytes = readFileSync(new URL("../../contracts/tiles-account-score-v1.json", import.meta.url));
+const accountScoreFixture = JSON.parse(accountScoreBytes.toString("utf8"));
+const legacyProtocolBytes = readFileSync(new URL("../../src/leaderboard/protocol.ts", import.meta.url));
+const contractTsconfig = JSON.parse(readFileSync(
+  new URL("../../tsconfig.contract.json", import.meta.url), "utf8"));
 
 test("publication fixture preserves old/new producer-consumer behavior before client support", () => {
   assert.equal(createHash("sha256").update(bytes).digest("hex"),
@@ -19,3 +24,23 @@ test("publication fixture preserves old/new producer-consumer behavior before cl
   assert.equal(fixture.compatibility.newClientOldServer,
     "render the legacy guest identity without fabricating an account or message");
 })
+
+test("account score fixture stays byte-identical to the frozen Road producer contract", () => {
+  assert.equal(createHash("sha256").update(accountScoreBytes).digest("hex"),
+    "8a6d6d1b7f42fd608d2c4741f8450623a38e89b464d3042a59dd9d8f8fc876d4");
+  assert.equal(accountScoreFixture.attemptStart.response.accountBinding, undefined);
+  assert.equal(accountScoreFixture.completion.response.accountBinding.state, "linked");
+  assert.equal(accountScoreFixture.claimContinuation.method, "POST");
+  assert.equal(accountScoreFixture.claim.method, "POST");
+  assert.equal(accountScoreFixture.claimStatus.method, "GET");
+  assert.equal(accountScoreFixture.claimStatus.states.claimedByOther.status, "claimed_by_other");
+  assert.equal(accountScoreFixture.publication.postResponse.messageState, "visible");
+  assert.equal(accountScoreFixture.publication.states.locked.accountName, "Former Player");
+});
+
+test("Phase 3 declarations cannot mutate the API v2 replay contract fingerprint", () => {
+  assert.equal(createHash("sha256").update(legacyProtocolBytes).digest("hex"),
+    "4148c512dbf94be77e783592e88eab696eb6287b86e375d71bff02ec26927ace");
+  assert.deepEqual(contractTsconfig.include, ["src/leaderboard/protocol.ts"]);
+  assert.equal(contractTsconfig.include.includes("src/leaderboard/accountScoreProtocol.ts"), false);
+});

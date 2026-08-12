@@ -9,6 +9,7 @@ import {
   clearAttemptSession,
   loadAttemptSession,
   saveAttemptSession,
+  type StoredAttemptSession,
 } from "./attemptSession";
 import {
   createLeaderboardClient,
@@ -16,7 +17,15 @@ import {
   type LeaderboardClient,
 } from "./leaderboardClient";
 import {
+  createRankedAttemptJournal,
+  type JournalDurability,
+  type RankedAttemptJournal,
+} from "./rankedAttemptJournal";
+import type { StartIntentItem } from "./rankedOutbox";
+import type { AccountAttemptCompleteResponse, AccountBinding } from "./accountScoreProtocol";
+import {
   API_PROTOCOL_VERSION,
+  PUBLIC_ERROR_CODES,
   REPLAY_CONTRACT_VERSION,
   type AttemptCompleteResponse,
   type AttemptStartResponse,
@@ -45,6 +54,8 @@ export type UseRankedAttemptOptions = {
   readonly enabled: boolean;
   readonly levelVersionId: string | null;
   readonly client?: LeaderboardClient;
+  readonly journal?: RankedAttemptJournal;
+  readonly authGeneration?: string | null;
   readonly restoreCommands?: (
     commands: readonly ReplayCommand[],
   ) => "playing" | "complete" | false;
@@ -54,6 +65,8 @@ export function useRankedAttempt({
   enabled,
   levelVersionId,
   client = defaultClient,
+  journal,
+  authGeneration = null,
   restoreCommands,
 }: UseRankedAttemptOptions) {
   const [attemptState, dispatch] = useReducer(attemptReducer, initialAttemptState);
@@ -62,6 +75,10 @@ export function useRankedAttempt({
   });
   const [countdown, setCountdown] = useState<number>();
   const [rankedElapsedSeconds, setRankedElapsedSeconds] = useState<number>();
+  const [journalState, setJournalState] = useState<{
+    readonly durability: JournalDurability;
+    readonly navigationBlocked: boolean;
+  }>({ durability: "durable", navigationBlocked: false });
   const attemptRef = useRef<AttemptState>(attemptState);
   const recordsRef = useRef<RecordsState>(recordsState);
   const commandLogRef = useRef<readonly ReplayCommand[]>([]);
@@ -72,6 +89,22 @@ export function useRankedAttempt({
   const flowGenerationRef = useRef(0);
   const mountedRef = useRef(true);
   const levelRef = useRef(levelVersionId);
+  const journalPromiseRef = useRef<Promise<RankedAttemptJournal> | undefined>(undefined);
+  const startIntentRef = useRef<StartIntentItem | undefined>(undefined);
+
+  const getJournal = useCallback(() => {
+    journalPromiseRef.current ??= journal
+      ? Promise.resolve(journal)
+      : createRankedAttemptJournal();
+    return journalPromiseRef.current;
+  }, [journal]);
+
+  const syncJournalState = useCallback((activeJournal: RankedAttemptJournal) => {
+    setJournalState({
+      durability: activeJournal.durability,
+      navigationBlocked: activeJournal.navigationBlocked,
+    });
+  }, []);
 
   attemptRef.current = attemptState;
   recordsRef.current = recordsState;
@@ -218,77 +251,77 @@ export function useRankedAttempt({
     setRecordsState({ status: "loading" });
     void refreshRecords();
 
-    const session = loadAttemptSession();
-    if (!session) {
-      return;
-    }
-    if (session.attempt.levelVersionId !== levelVersionId) {
-      clearAttemptSession();
-      return;
-    }
+    const restoreSession = (session: StoredAttemptSession) => {
+      if (session.attempt.levelVersionId !== levelVersionId) return;
 
-    const hasExpired =
-      Date.parse(session.attempt.expiresAt) <= Date.now();
-    const startsInFuture =
-      Date.parse(session.attempt.startsAt) > Date.now();
-    if (startsInFuture && session.commandLog.length > 0) {
-      clearAttemptSession();
-      return;
-    }
-    const restored = startsInFuture
-      ? "playing"
-      : session.commandLog.length > 0
-        ? restoreCommandsRef.current?.(session.commandLog)
-        : "playing";
-    if (restored === false || restored === undefined) {
-      clearAttemptSession();
-      return;
-    }
+      const hasExpired = Date.parse(session.attempt.expiresAt) <= Date.now();
+      const startsInFuture = Date.parse(session.attempt.startsAt) > Date.now();
+      if (startsInFuture && session.commandLog.length > 0) return;
+      const restored = startsInFuture
+        ? "playing"
+        : session.commandLog.length > 0
+          ? restoreCommandsRef.current?.(session.commandLog)
+          : "playing";
+      if (restored === false || restored === undefined) return;
 
-    commandLogRef.current = session.commandLog;
-    dispatch(
-      hasExpired
-        ? {
-            type: "RECOVER",
-            attempt: session.attempt,
-            commandLog: session.commandLog,
-          }
-        : startsInFuture
-        ? { type: "RECOVER_COUNTDOWN", attempt: session.attempt }
-        : restored === "complete"
+      commandLogRef.current = session.commandLog;
+      dispatch(
+        hasExpired
           ? {
               type: "RECOVER",
               attempt: session.attempt,
               commandLog: session.commandLog,
             }
-          : {
-              type: "RESUME",
-              attempt: session.attempt,
-              commandLog: session.commandLog,
-            },
-    );
+          : startsInFuture
+            ? { type: "RECOVER_COUNTDOWN", attempt: session.attempt }
+            : restored === "complete"
+              ? { type: "RECOVER", attempt: session.attempt, commandLog: session.commandLog }
+              : { type: "RESUME", attempt: session.attempt, commandLog: session.commandLog },
+      );
 
-    void recoverAttempt({
-      client,
-      session,
-      restored,
-      expectedLevel: levelVersionId,
-      signal: flowController.signal,
-      isCurrent: () =>
-        mountedRef.current &&
-        flowGeneration === flowGenerationRef.current &&
-        levelRef.current === levelVersionId,
-      onResult: (result) => {
-        mergeAuthoritativeResult(
-          result,
-          levelVersionId,
-          session.attempt.displayName,
-        );
-        dispatch({ type: "SUBMIT_SUCCEEDED", result });
-        void refreshRecords();
-      },
-      onTerminal: (error) => dispatch({ type: "RECOVERY_FAILED", error }),
-    });
+      void recoverAttempt({
+        client, session, restored, expectedLevel: levelVersionId, signal: flowController.signal,
+        isCurrent: () => mountedRef.current && flowGeneration === flowGenerationRef.current
+          && levelRef.current === levelVersionId,
+        onResult: (result) => {
+          void getJournal().then(async (activeJournal) => {
+            await activeJournal.recordReceipt(session.attempt, result);
+            if (!accountBindingOf(result) || accountBindingOf(result)?.state === "linked") {
+              await activeJournal.terminalize(session.attempt.attemptId);
+            }
+            syncJournalState(activeJournal);
+          });
+          mergeAuthoritativeResult(result, levelVersionId, session.attempt.displayName);
+          dispatch({ type: "SUBMIT_SUCCEEDED", result });
+          void refreshRecords();
+        },
+        onTerminal: (error) => {
+          void getJournal().then(async (activeJournal) => {
+            await activeJournal.terminalize(session.attempt.attemptId);
+            syncJournalState(activeJournal);
+          });
+          dispatch({ type: "RECOVERY_FAILED", error });
+        },
+      });
+    };
+
+    const legacySession = loadAttemptSession();
+    if (legacySession) {
+      if (legacySession.attempt.levelVersionId === levelVersionId) {
+        void getJournal().then(() => {
+          if (flowGeneration === flowGenerationRef.current) restoreSession(legacySession);
+        });
+      }
+    } else {
+      void getJournal().then(async (activeJournal) => {
+        const durable = (await activeJournal.recoverableAttempts())
+          .filter((item) => item.attempt.levelVersionId === levelVersionId)
+          .sort((left, right) => right.createdAt - left.createdAt)[0];
+        if (durable && flowGeneration === flowGenerationRef.current) {
+          restoreSession({ attempt: durable.attempt, commandLog: durable.commandLog });
+        }
+      });
+    }
 
     return () => {
       flowGenerationRef.current += 1;
@@ -296,7 +329,7 @@ export function useRankedAttempt({
       readGenerationRef.current += 1;
       activeReadRef.current?.abort();
     };
-  }, [client, enabled, levelVersionId, refreshRecords]);
+  }, [client, enabled, getJournal, levelVersionId, refreshRecords, syncJournalState]);
 
   useEffect(() => {
     if (attemptState.status !== "countdown") {
@@ -361,25 +394,41 @@ export function useRankedAttempt({
     activeFlowRef.current = flowController;
     dispatch({ type: "START_REQUESTED" });
     try {
+      const activeJournal = await getJournal();
+      let startIntent = startIntentRef.current;
+      if (!startIntent || startIntent.levelVersionId !== requestedLevel) {
+        startIntent = await activeJournal.beginStart(requestedLevel, authGeneration);
+        startIntentRef.current = startIntent;
+        syncJournalState(activeJournal);
+      }
       let attempt = await client.startAttempt(
         requestedLevel,
-        crypto.randomUUID(),
+        startIntent.requestId,
         flowController.signal,
       );
       if (!isCurrentFlow(flowGeneration, requestedLevel)) {
         return;
       }
       assertAttemptBinding(attempt, requestedLevel);
+      await activeJournal.acceptStart(startIntent, attempt);
+      startIntentRef.current = undefined;
+      syncJournalState(activeJournal);
       if (Date.parse(attempt.startsAt) - Date.now() < 1_000) {
+        await activeJournal.abandonUnplayed(attempt.attemptId);
+        startIntent = await activeJournal.beginStart(requestedLevel, authGeneration);
+        startIntentRef.current = startIntent;
         attempt = await client.startAttempt(
           requestedLevel,
-          crypto.randomUUID(),
+          startIntent.requestId,
           flowController.signal,
         );
         if (!isCurrentFlow(flowGeneration, requestedLevel)) {
           return;
         }
         assertAttemptBinding(attempt, requestedLevel);
+        await activeJournal.acceptStart(startIntent, attempt);
+        startIntentRef.current = undefined;
+        syncJournalState(activeJournal);
       }
       commandLogRef.current = [];
       saveAttemptSession({ attempt, commandLog: [] });
@@ -389,7 +438,7 @@ export function useRankedAttempt({
         dispatch({ type: "START_FAILED", error: errorDetail(error) });
       }
     }
-  }, [client, enabled]);
+  }, [authGeneration, client, enabled, getJournal, syncJournalState]);
 
   const submit = useCallback(
     async (
@@ -405,6 +454,12 @@ export function useRankedAttempt({
           return;
         }
         assertCompletionBinding(result, attempt);
+        const activeJournal = await getJournal();
+        await activeJournal.recordReceipt(attempt, result);
+        if (!accountBindingOf(result) || accountBindingOf(result)?.state === "linked") {
+          await activeJournal.terminalize(attempt.attemptId);
+        }
+        syncJournalState(activeJournal);
         clearAttemptSession();
         mergeAuthoritativeResult(
           result,
@@ -428,7 +483,7 @@ export function useRankedAttempt({
         });
       }
     },
-    [client, refreshRecords],
+    [client, getJournal, refreshRecords, syncJournalState],
   );
 
   const recordCommand = useCallback(
@@ -441,13 +496,19 @@ export function useRankedAttempt({
       commandLogRef.current = commandLog;
       saveAttemptSession({ attempt: state.attempt, commandLog });
       dispatch({ type: "COMMAND_RECORDED", command });
-      if (isComplete) {
-        const flowGeneration = flowGenerationRef.current;
-        dispatch({ type: "RUN_COMPLETED" });
-        void submit(state.attempt, commandLog, flowGeneration);
-      }
+      const flowGeneration = flowGenerationRef.current;
+      if (isComplete) dispatch({ type: "RUN_COMPLETED" });
+      void (async () => {
+        const activeJournal = await getJournal();
+        await activeJournal.appendCommand(state.attempt, command);
+        if (isComplete) {
+          await activeJournal.freezeCompletion(state.attempt);
+          syncJournalState(activeJournal);
+          await submit(state.attempt, commandLog, flowGeneration);
+        }
+      })();
     },
-    [submit],
+    [getJournal, submit, syncJournalState],
   );
 
   const retrySubmission = useCallback(async () => {
@@ -469,6 +530,12 @@ export function useRankedAttempt({
       }
       if (status.status === "completed") {
         assertCompletionBinding(status.result, state.attempt);
+        const activeJournal = await getJournal();
+        await activeJournal.recordReceipt(state.attempt, status.result);
+        if (!accountBindingOf(status.result) || accountBindingOf(status.result)?.state === "linked") {
+          await activeJournal.terminalize(state.attempt.attemptId);
+        }
+        syncJournalState(activeJournal);
         clearAttemptSession();
         mergeAuthoritativeResult(
           status.result,
@@ -486,6 +553,9 @@ export function useRankedAttempt({
           dispatch({ type: "RECOVERY_FAILED", error: expiredError() });
         }
       } else {
+        const activeJournal = await getJournal();
+        await activeJournal.terminalize(state.attempt.attemptId);
+        syncJournalState(activeJournal);
         clearAttemptSession();
         dispatch({ type: "RECOVERY_FAILED", error: status.error });
       }
@@ -498,7 +568,7 @@ export function useRankedAttempt({
         });
       }
     }
-  }, [client, refreshRecords, submit]);
+  }, [client, getJournal, refreshRecords, submit, syncJournalState]);
 
   const cancelRankedRun = useCallback(() => {
     flowGenerationRef.current += 1;
@@ -553,6 +623,7 @@ export function useRankedAttempt({
     recordsState,
     countdown,
     rankedElapsedSeconds,
+    journalState,
     startRankedRun,
     cancelRankedRun,
     recordCommand,
@@ -713,6 +784,10 @@ function assertCompletionBinding(
   }
 }
 
+function accountBindingOf(result: AttemptCompleteResponse): AccountBinding | undefined {
+  return (result as AccountAttemptCompleteResponse).accountBinding;
+}
+
 function protocolMismatchError(): PublicErrorResponse["error"] {
   return {
     code: "API_PROTOCOL_VERSION_MISMATCH",
@@ -733,7 +808,14 @@ function expiredError(): PublicErrorResponse["error"] {
 
 function errorDetail(error: unknown): PublicErrorResponse["error"] {
   if (error instanceof LeaderboardClientError) {
-    return error.detail;
+    return (PUBLIC_ERROR_CODES as readonly string[]).includes(error.detail.code)
+      ? error.detail as PublicErrorResponse["error"]
+      : {
+          code: "LEADERBOARD_UNAVAILABLE",
+          message: error.detail.message,
+          retryable: error.detail.retryable,
+          requestId: error.detail.requestId,
+        };
   }
   return {
     code: "LEADERBOARD_UNAVAILABLE",
