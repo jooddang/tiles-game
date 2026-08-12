@@ -27,7 +27,7 @@ test("publication fixture preserves old/new producer-consumer behavior before cl
 
 test("account score fixture stays byte-identical to the frozen Road producer contract", () => {
   assert.equal(createHash("sha256").update(accountScoreBytes).digest("hex"),
-    "8a6d6d1b7f42fd608d2c4741f8450623a38e89b464d3042a59dd9d8f8fc876d4");
+    "ae7b3f4b4d21c07edf1cea162fce05a758493d09101c87b15da176e844e9fc33");
   assert.equal(accountScoreFixture.attemptStart.response.accountBinding, undefined);
   assert.equal(accountScoreFixture.completion.response.accountBinding.state, "linked");
   assert.equal(accountScoreFixture.claimContinuation.method, "POST");
@@ -36,6 +36,8 @@ test("account score fixture stays byte-identical to the frozen Road producer con
   assert.equal(accountScoreFixture.claimStatus.states.claimedByOther.status, "claimed_by_other");
   assert.equal(accountScoreFixture.publication.postResponse.messageState, "visible");
   assert.equal(accountScoreFixture.publication.states.locked.accountName, "Former Player");
+  assert.equal(accountScoreFixture.attemptStatus.pending.result.accountBinding.state, "pending");
+  assert.equal(accountScoreFixture.errorCodes[0], "ACCOUNT_RATE_LIMITED");
 });
 
 test("Phase 3 declarations cannot mutate the API v2 replay contract fingerprint", () => {

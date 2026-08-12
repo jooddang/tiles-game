@@ -7,7 +7,10 @@ export function App() {
   return (
     <>
       {account.enabled ? <AccountIndicator snapshot={account.snapshot} onSignIn={account.requestSignIn} /> : null}
-      <GameScreen />
+      <GameScreen
+        accountSnapshot={account.enabled ? account.snapshot : undefined}
+        onSignIn={account.requestSignIn}
+      />
     </>
   );
 }

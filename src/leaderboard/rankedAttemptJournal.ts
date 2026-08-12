@@ -20,7 +20,8 @@ export type RankedAttemptJournal = {
   readonly acceptStart: (intent: StartIntentItem, attempt: AttemptStartResponse) => Promise<CompletionOutboxItem>;
   readonly appendCommand: (attempt: AttemptStartResponse, command: ReplayCommand) => Promise<CompletionOutboxItem>;
   readonly freezeCompletion: (attempt: AttemptStartResponse) => Promise<CompletionOutboxItem>;
-  readonly recordReceipt: (attempt: AttemptStartResponse, result: AccountAttemptCompleteResponse) => Promise<CompletionOutboxItem>;
+  readonly recordReceipt: (attempt: AttemptStartResponse, result: AccountAttemptCompleteResponse,
+    commandLog?: readonly ReplayCommand[]) => Promise<CompletionOutboxItem>;
   readonly abandonUnplayed: (attemptId: string) => Promise<void>;
   readonly terminalize: (attemptId: string) => Promise<void>;
   readonly itemForAttempt: (attemptId: string) => Promise<CompletionOutboxItem | null>;
@@ -145,10 +146,14 @@ export async function createRankedAttemptJournal(
       await write(item);
       return item;
     }),
-    recordReceipt: (attempt, result) => ordered(async () => {
+    recordReceipt: (attempt, result, commandLog = []) => ordered(async () => {
       const id = completionItemId(attempt.attemptId);
-      const current = await read(id);
-      if (!current || current.operation !== "complete") throw new Error("Ranked attempt journal missing");
+      const existing = await read(id);
+      const current: CompletionOutboxItem = existing?.operation === "complete" ? existing : {
+        id, operation: "complete", attempt, ownerBinding: attemptOwnerBinding(attempt),
+        commandLog, createdAt: Date.now(), expiresAt: Date.parse(attempt.expiresAt) + 2 * 60 * 60_000,
+        retryCount: 0, phase: "frozen",
+      };
       const phase = result.accountBinding?.state === "pending"
         ? "accepted_binding_pending" as const
         : result.accountBinding?.state === "guest"

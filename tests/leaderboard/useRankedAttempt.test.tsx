@@ -438,6 +438,34 @@ describe("useRankedAttempt", () => {
     expect(await journal.itemForAttempt(attempt.attemptId)).toMatchObject({ terminalResult: completion });
   });
 
+  it("repairs_a_nested_pending_binding_with_the_same_completion_before_terminal_delete", async () => {
+    const attempt = attemptFor(LEVEL_A, -2_000);
+    saveAttemptSession({ attempt, commandLog: [{ type: "remove", tileId: "tile-a" }] });
+    const pendingResult = completionFor(LEVEL_A);
+    const linkedResult = {
+      ...pendingResult,
+      accountBinding: { state: "linked", scoreId: "score-1", bestScoreId: "score-1" } as const,
+    };
+    const completeAttempt = vi.fn().mockResolvedValue(linkedResult);
+    const client = clientFake({
+      getAttempt: vi.fn().mockResolvedValue({ status: "completed", result: {
+        ...pendingResult, accountBinding: { state: "pending", retryable: true },
+      } }),
+      completeAttempt,
+    });
+
+    const { result } = renderHook(() => useRankedAttempt({
+      enabled: true, levelVersionId: LEVEL_A, client, restoreCommands: () => "complete",
+    }));
+
+    await waitFor(() => expect(result.current.attemptState.status).toBe("accepted"));
+    expect(completeAttempt).toHaveBeenCalledWith(
+      attempt.attemptId,
+      { commandLog: [{ type: "remove", tileId: "tile-a" }] },
+      expect.any(AbortSignal),
+    );
+  });
+
   it("keeps_an_active_ranked_run_on_server_time_when_the_page_is_hidden", async () => {
     vi.useFakeTimers();
     const client = clientFake({

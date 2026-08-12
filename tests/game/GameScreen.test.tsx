@@ -33,6 +33,7 @@ describe("GameScreen", () => {
   beforeEach(() => {
     window.localStorage.clear();
     window.sessionStorage.clear();
+    window.sessionStorage.setItem("tiles-game-stage-choice-v1", "practice");
     vi.useRealTimers();
   });
 
@@ -41,6 +42,82 @@ describe("GameScreen", () => {
 
     expect(screen.getByRole("heading", { name: "Hex Tower" })).toBeInTheDocument();
     expect(screen.getByLabelText(/Hex Tower board/i)).toBeInTheDocument();
+  });
+
+  it("does_not_allow_a_move_before_ranked_attempt_is_active_or_practice_is_explicit", async () => {
+    window.sessionStorage.removeItem("tiles-game-stage-choice-v1");
+    const client = createLeaderboardClientFake();
+    render(<GameScreen levels={testLevels} leaderboardEnabled={true} leaderboardClient={client} />);
+
+    expect(screen.getByRole("dialog", { name: "Start stage" })).toBeInTheDocument();
+    const tile = screen.getByRole("button", { name: /Tile test-a arrow up/i });
+    expect(tile).toBeDisabled();
+    fireEvent.click(tile);
+    expect(screen.getByTestId("move-count")).toHaveTextContent("0");
+
+    await waitFor(() => expect(client.getPersonalBest).toHaveBeenCalled());
+    vi.useFakeTimers();
+    fireEvent.click(screen.getByRole("button", { name: "Continue as guest" }));
+    fireEvent.click(tile);
+    expect(screen.getByTestId("move-count")).toHaveTextContent("0");
+    await act(async () => {
+      for (let index = 0; index < 30; index += 1) await Promise.resolve();
+    });
+    expect(client.startAttempt).toHaveBeenCalledTimes(1);
+    expect(tile).toBeDisabled();
+
+    await act(async () => {
+      vi.advanceTimersByTime(4_100);
+      await Promise.resolve();
+    });
+    expect(tile).toBeEnabled();
+  });
+
+  it("keeps_the_board_locked_after_ranked_start_failure_until_practice_is_chosen", async () => {
+    window.sessionStorage.removeItem("tiles-game-stage-choice-v1");
+    const client = {
+      ...createLeaderboardClientFake(),
+      startAttempt: vi.fn().mockRejectedValue(new TypeError("offline")),
+    } as LeaderboardClient;
+    render(<GameScreen levels={testLevels} leaderboardEnabled={true} leaderboardClient={client} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Continue as guest" }));
+    expect(await screen.findByText("Ranked play is unavailable")).toBeInTheDocument();
+    const tile = screen.getByRole("button", { name: /Tile test-a arrow up/i });
+    expect(tile).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Play practice" }));
+    expect(tile).toBeEnabled();
+  });
+
+  it("locks_the_next_level_during_hash_resolution_and_fresh_attempt_start", async () => {
+    window.sessionStorage.setItem("tiles-game-stage-choice-v1", "ranked");
+    vi.useFakeTimers();
+    const client = createLeaderboardClientFake();
+    render(<GameScreen levels={testLevels} leaderboardEnabled={true} leaderboardClient={client} />);
+    await act(async () => {
+      for (let index = 0; index < 60; index += 1) await Promise.resolve();
+    });
+    expect(client.startAttempt).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      vi.advanceTimersByTime(4_100);
+      for (let index = 0; index < 10; index += 1) await Promise.resolve();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Tile test-a arrow up/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Tile test-b arrow up/i }));
+    await act(async () => {
+      for (let index = 0; index < 20; index += 1) await Promise.resolve();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Next level" }));
+
+    const nextTile = screen.getByRole("button", { name: /Tile blocker-a arrow up/i });
+    expect(nextTile).toBeDisabled();
+    fireEvent.click(nextTile);
+    expect(screen.getByTestId("move-count")).toHaveTextContent("0");
+    await act(async () => {
+      for (let index = 0; index < 30; index += 1) await Promise.resolve();
+    });
+    expect(client.startAttempt).toHaveBeenCalledTimes(2);
   });
 
   it("removes_a_legal_tile_when_clicked", () => {
@@ -382,7 +459,7 @@ describe("GameScreen", () => {
     expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Retry" })).toBeDisabled();
     expect(screen.getByLabelText(/pick level/i)).toBeDisabled();
-    expect(window.sessionStorage.length).toBe(1);
+    expect(window.sessionStorage.getItem("tiles-game-ranked-attempt-v1")).not.toBeNull();
   });
 });
 

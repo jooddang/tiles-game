@@ -285,7 +285,7 @@ export function useRankedAttempt({
           && levelRef.current === levelVersionId,
         onResult: (result) => {
           void getJournal().then(async (activeJournal) => {
-            await activeJournal.recordReceipt(session.attempt, result);
+            await activeJournal.recordReceipt(session.attempt, result, session.commandLog);
             if (!accountBindingOf(result) || accountBindingOf(result)?.state === "linked") {
               await activeJournal.terminalize(session.attempt.attemptId);
             }
@@ -384,10 +384,6 @@ export function useRankedAttempt({
     if (!enabled || !requestedLevel) {
       return;
     }
-    const records = snapshotForLevel(recordsRef.current, requestedLevel);
-    if (!records?.personal) {
-      return;
-    }
     const flowGeneration = ++flowGenerationRef.current;
     activeFlowRef.current?.abort();
     const flowController = new AbortController();
@@ -455,7 +451,7 @@ export function useRankedAttempt({
         }
         assertCompletionBinding(result, attempt);
         const activeJournal = await getJournal();
-        await activeJournal.recordReceipt(attempt, result);
+        await activeJournal.recordReceipt(attempt, result, commandLog);
         if (!accountBindingOf(result) || accountBindingOf(result)?.state === "linked") {
           await activeJournal.terminalize(attempt.attemptId);
         }
@@ -529,20 +525,26 @@ export function useRankedAttempt({
         return;
       }
       if (status.status === "completed") {
-        assertCompletionBinding(status.result, state.attempt);
+        let completed = completionWithStatusBinding(status.result, status.accountBinding);
+        if (accountBindingOf(completed)?.state === "pending") {
+          completed = await client.completeAttempt(state.attempt.attemptId, {
+            commandLog: state.commandLog,
+          }, activeFlowRef.current?.signal);
+        }
+        assertCompletionBinding(completed, state.attempt);
         const activeJournal = await getJournal();
-        await activeJournal.recordReceipt(state.attempt, status.result);
-        if (!accountBindingOf(status.result) || accountBindingOf(status.result)?.state === "linked") {
+        await activeJournal.recordReceipt(state.attempt, completed, state.commandLog);
+        if (!accountBindingOf(completed) || accountBindingOf(completed)?.state === "linked") {
           await activeJournal.terminalize(state.attempt.attemptId);
         }
         syncJournalState(activeJournal);
         clearAttemptSession();
         mergeAuthoritativeResult(
-          status.result,
+          completed,
           state.attempt.levelVersionId,
           state.attempt.displayName,
         );
-        dispatch({ type: "SUBMIT_SUCCEEDED", result: status.result });
+        dispatch({ type: "SUBMIT_SUCCEEDED", result: completed });
         void refreshRecords();
       } else if (status.status === "started") {
         assertStatusAttemptBinding(status.attempt, state.attempt);
@@ -700,9 +702,15 @@ async function recoverAttempt({
       return;
     }
     if (status.status === "completed") {
-      assertCompletionBinding(status.result, session.attempt);
+      let completed = completionWithStatusBinding(status.result, status.accountBinding);
+      if (accountBindingOf(completed)?.state === "pending") {
+        completed = await client.completeAttempt(session.attempt.attemptId, {
+          commandLog: session.commandLog,
+        }, signal);
+      }
+      assertCompletionBinding(completed, session.attempt);
       clearAttemptSession();
-      onResult(status.result);
+      onResult(completed);
       return;
     }
     if (status.status !== "started") {
@@ -786,6 +794,13 @@ function assertCompletionBinding(
 
 function accountBindingOf(result: AttemptCompleteResponse): AccountBinding | undefined {
   return (result as AccountAttemptCompleteResponse).accountBinding;
+}
+
+function completionWithStatusBinding(
+  result: AttemptCompleteResponse,
+  binding: AccountBinding | undefined,
+): AccountAttemptCompleteResponse {
+  return binding ? { ...result, accountBinding: binding } : result;
 }
 
 function protocolMismatchError(): PublicErrorResponse["error"] {

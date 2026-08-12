@@ -58,11 +58,11 @@ function renderPanel(
 }
 
 describe("LeaderboardPanel", () => {
-  it("enables_ranked_start_only_after_the_public_identity_is_visible", () => {
+  it("keeps_ranked_start_eligible_while_display_only_identity_reads_load", () => {
     const { rerender } = renderPanel({ status: "loading" });
     expect(
       screen.getByRole("button", { name: "Start ranked run" }),
-    ).toBeDisabled();
+    ).toBeEnabled();
     expect(screen.getByText("Loading ranked identity…")).toBeInTheDocument();
 
     rerender(

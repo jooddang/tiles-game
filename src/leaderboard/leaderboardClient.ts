@@ -3,13 +3,13 @@ import {
   PUBLIC_ERROR_CODES,
   type AttemptCompleteRequest,
   type AttemptStartResponse,
-  type AttemptStatusResponse,
   type PersonalBestResponse,
   type PublicErrorResponse,
 } from "./protocol";
 import {
   ACCOUNT_SCORE_ERROR_CODES,
   type AccountAttemptCompleteResponse,
+  type AccountAttemptStatusResponse,
   type AccountLeaderboardEntry,
   type AccountLeaderboardResponse,
   type ClaimContinuationResponse,
@@ -114,7 +114,7 @@ export function createLeaderboardClient(fetcher: typeof fetch = fetch) {
       );
     },
     getAttempt(attemptId: string, signal?: AbortSignal) {
-      return request<AttemptStatusResponse>(
+      return request<AccountAttemptStatusResponse>(
         `/api/tiles-game/leaderboard/attempts/${encodeURIComponent(attemptId)}`,
         isAttemptStatusResponse,
         { signal },
@@ -292,7 +292,7 @@ function isAttemptStartResponse(value: unknown): value is AttemptStartResponse {
   );
 }
 
-function isAttemptStatusResponse(value: unknown): value is AttemptStatusResponse {
+function isAttemptStatusResponse(value: unknown): value is AccountAttemptStatusResponse {
   if (!isRecord(value) || typeof value.status !== "string") {
     return false;
   }
@@ -300,7 +300,8 @@ function isAttemptStatusResponse(value: unknown): value is AttemptStatusResponse
     return isAttemptStartResponse(value.attempt);
   }
   if (value.status === "completed") {
-    return isAttemptCompleteResponse(value.result);
+    return isAttemptCompleteResponse(value.result)
+      && (value.accountBinding === undefined || isAccountBinding(value.accountBinding));
   }
   return (
     (value.status === "expired" || value.status === "rejected") &&

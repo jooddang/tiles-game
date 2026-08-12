@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { AttemptState } from "./attemptMachine";
 import type { LeaderboardEntry } from "./protocol";
+import type { AccountLeaderboardEntry } from "./accountScoreProtocol";
 import type { RecordsState } from "./useRankedAttempt";
 
 export type LeaderboardPanelProps = {
@@ -97,11 +98,10 @@ export function LeaderboardPanel({
       ? records.personal
       : null;
   const canStart =
-    personal !== null &&
-    (attempt.status === "unranked" ||
+    attempt.status === "unranked" ||
       attempt.status === "unavailable" ||
       attempt.status === "rejected" ||
-      attempt.status === "accepted");
+      attempt.status === "accepted";
 
   return (
     <section className="leaderboard-disclosure" aria-label="Ranked records">
@@ -299,6 +299,7 @@ export function RecordsContent({
           </thead>
           <tbody>
             {entries.map((entry) => {
+              const accountEntry = entry as AccountLeaderboardEntry;
               const isPlayer =
                 authoritativeBest?.scoreId === entry.scoreId ||
                 personal?.personalBest?.scoreId === entry.scoreId;
@@ -306,8 +307,15 @@ export function RecordsContent({
                 <tr key={entry.scoreId} data-player={isPlayer || undefined}>
                   <td>#{entry.rank}</td>
                   <td title={entry.displayName}>
-                    {entry.displayName}
+                    {accountEntry.identityKind === "account"
+                      ? accountEntry.accountName
+                      : accountEntry.identityKind === "guest"
+                        ? `Guest · ${entry.displayName}`
+                        : entry.displayName}
                     {isPlayer ? <span className="you-label"> (You)</span> : null}
+                    {accountEntry.messageState === "visible" && accountEntry.message ? (
+                      <span className="leaderboard-message">{accountEntry.message}</span>
+                    ) : null}
                   </td>
                   <td>{formatTime(entry.elapsedSeconds)}</td>
                 </tr>

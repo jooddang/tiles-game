@@ -1,7 +1,9 @@
-import type { AttemptCompleteResponse, LeaderboardEntry, LeaderboardResponse } from "./protocol";
+import type {
+  AttemptCompleteResponse, AttemptStartResponse, LeaderboardEntry, LeaderboardResponse, PublicErrorResponse,
+} from "./protocol";
 
 export const ACCOUNT_SCORE_ERROR_CODES = [
-  "ACCOUNT_UNAVAILABLE", "AUTH_REQUIRED", "CLAIM_EXPIRED", "CLAIM_INVALID",
+  "ACCOUNT_RATE_LIMITED", "ACCOUNT_UNAVAILABLE", "AUTH_REQUIRED", "CLAIM_EXPIRED", "CLAIM_INVALID",
   "FEATURE_DISABLED", "MESSAGE_ERASED", "MESSAGE_INVALID", "MESSAGE_LOCKED",
   "ORIGIN_NOT_ALLOWED", "PLAYER_OWNERSHIP_CONFLICT", "REQUEST_CONFLICT",
   "REQUEST_INVALID", "REQUEST_TOO_LARGE", "REVISION_CONFLICT",
@@ -16,6 +18,12 @@ export type AccountBinding =
 export type AccountAttemptCompleteResponse = AttemptCompleteResponse & {
   readonly accountBinding?: AccountBinding;
 };
+
+export type AccountAttemptStatusResponse =
+  | { readonly status: "started"; readonly attempt: AttemptStartResponse }
+  | { readonly status: "completed"; readonly result: AccountAttemptCompleteResponse;
+      readonly accountBinding?: AccountBinding }
+  | { readonly status: "expired" | "rejected"; readonly error: PublicErrorResponse["error"] };
 
 export type AccountLeaderboardEntry = LeaderboardEntry & {
   readonly identityKind?: "guest" | "account";

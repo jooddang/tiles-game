@@ -5,8 +5,16 @@
     "request": { "apiProtocolVersion": 2, "levelVersionId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "clientRequestId": "11111111-1111-4111-8111-111111111111" },
     "response": { "attemptId": "22222222-2222-4222-8222-222222222222", "apiProtocolVersion": 2, "levelVersionId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "replayContractVersion": 1, "startsAt": "2026-08-11T00:00:00.000Z", "expiresAt": "2026-08-11T00:30:00.000Z", "displayName": "Calm-Otter-101" }
   },
+  "accountPersonalBest": {
+    "path": "/api/tiles-game/leaderboard/sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/me",
+    "response": { "levelVersionId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "displayName": "Player·A1B2", "personalBest": { "scoreId": "33333333-3333-4333-8333-333333333333", "rank": 1, "displayName": "Calm-Otter-101", "elapsedSeconds": 12, "achievedAt": "2026-08-11T00:00:00.000Z", "identityKind": "account", "accountName": "Player·A1B2", "message": null, "messageState": "none", "publicationRevision": null } }
+  },
   "completion": {
     "response": { "submittedScoreId": "33333333-3333-4333-8333-333333333333", "levelVersionId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "elapsedSeconds": 12, "status": "published", "isPersonalBest": true, "personalBest": { "scoreId": "33333333-3333-4333-8333-333333333333", "elapsedSeconds": 12, "rank": 1, "isTopTen": true }, "accountBinding": { "state": "linked", "scoreId": "33333333-3333-4333-8333-333333333333", "bestScoreId": "33333333-3333-4333-8333-333333333333" } }
+  },
+  "attemptStatus": {
+    "linked": { "status": "completed", "result": { "submittedScoreId": "33333333-3333-4333-8333-333333333333", "levelVersionId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "elapsedSeconds": 12, "status": "published", "isPersonalBest": true, "personalBest": { "scoreId": "33333333-3333-4333-8333-333333333333", "elapsedSeconds": 12, "rank": 1, "isTopTen": true }, "accountBinding": { "state": "linked", "scoreId": "33333333-3333-4333-8333-333333333333", "bestScoreId": "33333333-3333-4333-8333-333333333333" } } },
+    "pending": { "status": "completed", "result": { "submittedScoreId": "33333333-3333-4333-8333-333333333333", "levelVersionId": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "elapsedSeconds": 12, "status": "published", "isPersonalBest": true, "personalBest": { "scoreId": "33333333-3333-4333-8333-333333333333", "elapsedSeconds": 12, "rank": 1, "isTopTen": true }, "accountBinding": { "state": "pending", "retryable": true } } }
   },
   "claimContinuation": {
     "method": "POST", "path": "/api/tiles-game/scores/33333333-3333-4333-8333-333333333333/claim-continuation",
@@ -40,5 +48,7 @@
     }
   },
   "leaderboardAdditiveFields": { "identityKind": "account", "accountName": "Player·A1B2", "message": "I own this ocean", "messageState": "visible", "publicationRevision": 1 },
-  "error": { "error": { "code": "REQUEST_CONFLICT", "message": "This request was already used for different data.", "retryable": false, "requestId": "request-123" } }
+  "errorCodes": ["ACCOUNT_RATE_LIMITED", "ACCOUNT_UNAVAILABLE", "AUTH_REQUIRED", "CLAIM_EXPIRED", "CLAIM_INVALID", "FEATURE_DISABLED", "MESSAGE_ERASED", "MESSAGE_INVALID", "MESSAGE_LOCKED", "ORIGIN_NOT_ALLOWED", "PLAYER_OWNERSHIP_CONFLICT", "REQUEST_CONFLICT", "REQUEST_INVALID", "REQUEST_TOO_LARGE", "REVISION_CONFLICT", "SCORE_ALREADY_CLAIMED", "SCORE_NOT_FOUND", "SCORE_NOT_OWNED"],
+  "error": { "error": { "code": "REQUEST_CONFLICT", "message": "This request was already used for different data.", "retryable": false, "requestId": "request-123" } },
+  "rateLimitedError": { "status": 429, "retryAfterSeconds": 300, "body": { "error": { "code": "ACCOUNT_RATE_LIMITED", "message": "Too many account score requests were made.", "retryable": true, "requestId": "request-429" } } }
 }

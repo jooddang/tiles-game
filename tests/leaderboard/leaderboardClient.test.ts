@@ -163,4 +163,28 @@ describe("leaderboardClient", () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json(body));
     await expect(createLeaderboardClient(fetcher).getPublication("score-1")).resolves.toEqual(body);
   });
+
+  it("accepts_the_frozen_nested_account_binding_on_completed_attempt_status", async () => {
+    const body = {
+      status: "completed",
+      result: {
+        status: "published", submittedScoreId: "score-1", levelVersionId: "sha256:level",
+        elapsedSeconds: 12, isPersonalBest: true,
+        personalBest: { scoreId: "score-1", elapsedSeconds: 12, rank: 1, isTopTen: true },
+        accountBinding: { state: "pending", retryable: true },
+      },
+    };
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json(body));
+    await expect(createLeaderboardClient(fetcher).getAttempt("attempt-1")).resolves.toEqual(body);
+  });
+
+  it("accepts_ACCOUNT_RATE_LIMITED_separately_and_preserves_Retry_After", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ error: {
+      code: "ACCOUNT_RATE_LIMITED", message: "Too many account score requests were made.",
+      retryable: true, requestId: "request-429",
+    } }, { status: 429, headers: { "Retry-After": "300" } }));
+
+    await expect(createLeaderboardClient(fetcher).createClaimContinuation("score-1", "request-1"))
+      .rejects.toMatchObject({ detail: { code: "ACCOUNT_RATE_LIMITED", retryable: true, retryAfterSeconds: 300 } });
+  });
 });

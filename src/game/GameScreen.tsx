@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { AccountSnapshot } from "../account/protocol";
 import type { LevelDefinition } from "../engine";
 import {
   isBoardInputLocked,
@@ -14,12 +15,15 @@ import { useRankedAttempt } from "../leaderboard/useRankedAttempt";
 import { BoardView } from "./BoardView";
 import { GameHud } from "./GameHud";
 import { LevelCompletePanel } from "./LevelCompletePanel";
+import { StageStartPanel } from "./StageStartPanel";
 import { useGameController } from "./useGameController";
 
 export type GameScreenProps = {
   readonly levels?: readonly LevelDefinition[];
   readonly leaderboardEnabled?: boolean;
   readonly leaderboardClient?: LeaderboardClient;
+  readonly accountSnapshot?: AccountSnapshot | null;
+  readonly onSignIn?: () => void;
 };
 
 const defaultClient = createLeaderboardClient();
@@ -34,6 +38,8 @@ export function GameScreen({
   levels,
   leaderboardEnabled = runtimeLeaderboardEnabled,
   leaderboardClient = defaultClient,
+  accountSnapshot,
+  onSignIn = () => undefined,
 }: GameScreenProps) {
   const controller = useGameController(levels);
   const blockedCount = controller.blockedFeedback?.blockerIds.length ?? 0;
@@ -46,10 +52,13 @@ export function GameScreen({
       ? resolvedLevelVersion.versionId
       : null;
   const [isRecordsOpen, setIsRecordsOpen] = useState(false);
+  const [stageMode, setStageMode] = useState<"ranked" | "practice" | null>(() => readStageMode());
+  const effectiveAccountSnapshot = accountSnapshot === undefined ? STANDALONE_GUEST : accountSnapshot;
   const ranked = useRankedAttempt({
     enabled: leaderboardEnabled,
     levelVersionId: currentLevelVersionId,
     client: leaderboardClient,
+    authGeneration: accountSnapshot?.authGeneration ?? null,
     restoreCommands: controller.restoreCommandLog,
   });
   const rankedControlsFrozen =
@@ -60,6 +69,17 @@ export function GameScreen({
   const displayedElapsedSeconds =
     ranked.rankedElapsedSeconds ?? controller.elapsedSeconds;
   const isLevelComplete = controller.gameState.status === "complete";
+  const rankedStartFailed = ranked.attemptState.status === "unavailable"
+    || ranked.attemptState.status === "rejected";
+  const stageGateActive = leaderboardEnabled && !isLevelComplete
+    && (stageMode === null || (stageMode === "ranked" && rankedStartFailed));
+  const rankedInputGate = leaderboardEnabled && !isLevelComplete && stageMode === "ranked"
+    && ranked.attemptState.status !== "active";
+
+  useEffect(() => {
+    if (!leaderboardEnabled || stageMode !== "ranked" || isLevelComplete || !currentLevelVersionId) return;
+    if (ranked.attemptState.status === "unranked") void ranked.startRankedRun();
+  }, [currentLevelVersionId, isLevelComplete, leaderboardEnabled, ranked, stageMode]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -86,7 +106,7 @@ export function GameScreen({
         return;
       }
 
-      if (isRecordsOpen || rankedControlsFrozen) {
+      if (isRecordsOpen || rankedControlsFrozen || stageGateActive || rankedInputGate) {
         return;
       }
 
@@ -105,12 +125,12 @@ export function GameScreen({
 
     window.addEventListener("keydown", handleKeyboardShortcut);
     return () => window.removeEventListener("keydown", handleKeyboardShortcut);
-  }, [controller, isRecordsOpen, ranked, rankedControlsFrozen]);
+  }, [controller, isRecordsOpen, ranked, rankedControlsFrozen, rankedInputGate, stageGateActive]);
 
   function playTile(tileId: string) {
     if (
       isBoardInputLocked(ranked.attemptState) ||
-      rankedControlsFrozen
+      rankedControlsFrozen || stageGateActive || rankedInputGate
     ) {
       return;
     }
@@ -136,7 +156,7 @@ export function GameScreen({
   return (
     <main className="game-screen" data-theme="cosmic-arcade">
       <GameHud
-        isInteractionLocked={rankedControlsFrozen || isLevelComplete}
+        isInteractionLocked={rankedControlsFrozen || isLevelComplete || stageGateActive || rankedInputGate}
         controller={{
           ...controller,
           elapsedSeconds: displayedElapsedSeconds,
@@ -169,7 +189,11 @@ export function GameScreen({
               controller.restart();
               void ranked.startRankedRun();
             }}
-            onCancel={ranked.cancelRankedRun}
+            onCancel={() => {
+              writeStageMode("practice");
+              setStageMode("practice");
+              ranked.cancelRankedRun();
+            }}
             onRetrySubmission={ranked.retrySubmission}
             onRefresh={() => void ranked.refreshRecords()}
             isOpen={isRecordsOpen}
@@ -185,7 +209,7 @@ export function GameScreen({
           blockedFeedback={controller.blockedFeedback}
           onPlayTile={playTile}
           isInputLocked={
-            isBoardInputLocked(ranked.attemptState) || rankedControlsFrozen
+            isBoardInputLocked(ranked.attemptState) || rankedControlsFrozen || stageGateActive || rankedInputGate
           }
         />
 
@@ -244,6 +268,42 @@ export function GameScreen({
           navigationBlocked={ranked.journalState.navigationBlocked}
         />
       ) : null}
+      {stageGateActive ? (
+        <StageStartPanel
+          snapshot={effectiveAccountSnapshot}
+          rankedAvailable={leaderboardEnabled}
+          onSignIn={onSignIn}
+          onContinue={() => {
+            writeStageMode("ranked");
+            setStageMode("ranked");
+          }}
+          startFailed={rankedStartFailed}
+          onPractice={() => {
+            writeStageMode("practice");
+            setStageMode("practice");
+            ranked.cancelRankedRun();
+          }}
+        />
+      ) : null}
     </main>
   );
+}
+
+const STAGE_CHOICE_KEY = "tiles-game-stage-choice-v1";
+const STANDALONE_GUEST: AccountSnapshot = {
+  authRevision: 1,
+  authGeneration: "standalone_guest_generation",
+  account: { state: "guest" },
+};
+
+function readStageMode(): "ranked" | "practice" | null {
+  try {
+    const value = window.sessionStorage.getItem(STAGE_CHOICE_KEY);
+    return value === "ranked" || value === "practice" ? value : null;
+  } catch { return null; }
+}
+
+function writeStageMode(mode: "ranked" | "practice") {
+  try { window.sessionStorage.setItem(STAGE_CHOICE_KEY, mode); }
+  catch { /* The choice remains in React state for this page. */ }
 }
