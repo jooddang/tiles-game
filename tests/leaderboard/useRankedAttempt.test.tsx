@@ -431,11 +431,13 @@ describe("useRankedAttempt", () => {
     }));
 
     expect(result.current.recoveryReady).toBe(false);
-    await waitFor(() => expect(result.current.recoveryReady).toBe(true));
+    await waitFor(() => expect(result.current.attemptState.status).toBe("result_pending"));
+    expect(result.current.recoveryReady).toBe(false);
     expect(result.current.attemptState.status).toBe("result_pending");
     await act(async () => status.resolve({ status: "completed", result: completionFor(LEVEL_A),
       accountBinding: { state: "guest" } }));
     await waitFor(() => expect(result.current.attemptState.status).toBe("accepted"));
+    expect(result.current.recoveryReady).toBe(true);
   });
 
   it("retains_an_accepted_receipt_while_account_binding_is_pending", async () => {

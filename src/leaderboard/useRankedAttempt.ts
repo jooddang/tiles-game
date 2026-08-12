@@ -255,17 +255,17 @@ export function useRankedAttempt({
     void refreshRecords();
 
     const restoreSession = (session: StoredAttemptSession) => {
-      if (session.attempt.levelVersionId !== levelVersionId) return;
+      if (session.attempt.levelVersionId !== levelVersionId) return false;
 
       const hasExpired = Date.parse(session.attempt.expiresAt) <= Date.now();
       const startsInFuture = Date.parse(session.attempt.startsAt) > Date.now();
-      if (startsInFuture && session.commandLog.length > 0) return;
+      if (startsInFuture && session.commandLog.length > 0) return false;
       const restored = startsInFuture
         ? "playing"
         : session.commandLog.length > 0
           ? restoreCommandsRef.current?.(session.commandLog)
           : "playing";
-      if (restored === false || restored === undefined) return;
+      if (restored === false || restored === undefined) return false;
 
       commandLogRef.current = session.commandLog;
       dispatch(
@@ -296,6 +296,7 @@ export function useRankedAttempt({
           });
           mergeAuthoritativeResult(result, levelVersionId, session.attempt.displayName);
           dispatch({ type: "SUBMIT_SUCCEEDED", result });
+          setRecoveryReady(true);
           void refreshRecords();
         },
         onTerminal: (error) => {
@@ -304,8 +305,11 @@ export function useRankedAttempt({
             syncJournalState(activeJournal);
           });
           dispatch({ type: "RECOVERY_FAILED", error });
+          setRecoveryReady(true);
         },
+        onResumed: () => setRecoveryReady(true),
       });
+      return true;
     };
 
     const legacySession = loadAttemptSession();
@@ -313,8 +317,7 @@ export function useRankedAttempt({
       if (legacySession.attempt.levelVersionId === levelVersionId) {
         void getJournal().then(() => {
           if (flowGeneration === flowGenerationRef.current) {
-            restoreSession(legacySession);
-            setRecoveryReady(true);
+            if (!restoreSession(legacySession)) setRecoveryReady(true);
           }
         });
       } else {
@@ -325,10 +328,11 @@ export function useRankedAttempt({
         const durable = (await activeJournal.recoverableAttempts())
           .filter((item) => item.attempt.levelVersionId === levelVersionId)
           .sort((left, right) => right.createdAt - left.createdAt)[0];
-        if (durable && flowGeneration === flowGenerationRef.current) {
-          restoreSession({ attempt: durable.attempt, commandLog: durable.commandLog });
-        }
-        if (flowGeneration === flowGenerationRef.current) setRecoveryReady(true);
+        if (flowGeneration !== flowGenerationRef.current) return;
+        const recovering = durable
+          ? restoreSession({ attempt: durable.attempt, commandLog: durable.commandLog })
+          : false;
+        if (!recovering) setRecoveryReady(true);
       });
     }
 
@@ -693,6 +697,7 @@ async function recoverAttempt({
   isCurrent,
   onResult,
   onTerminal,
+  onResumed,
 }: {
   readonly client: LeaderboardClient;
   readonly session: {
@@ -705,6 +710,7 @@ async function recoverAttempt({
   readonly isCurrent: () => boolean;
   readonly onResult: (result: AttemptCompleteResponse) => void;
   readonly onTerminal: (error: PublicErrorResponse["error"]) => void;
+  readonly onResumed: () => void;
 }) {
   try {
     const status = await client.getAttempt(session.attempt.attemptId, signal);
@@ -747,6 +753,8 @@ async function recoverAttempt({
       assertCompletionBinding(result, session.attempt);
       clearAttemptSession();
       onResult(result);
+    } else {
+      onResumed();
     }
   } catch (error) {
     if (isCurrent()) {
