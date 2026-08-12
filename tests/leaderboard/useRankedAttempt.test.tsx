@@ -410,6 +410,34 @@ describe("useRankedAttempt", () => {
     expect(await restartedJournal.itemForAttempt(attempt.attemptId)).toBeNull();
   });
 
+  it("restores_a_guest_receipt_before_reporting_recovery_ready", async () => {
+    const items = new Map<string, RankedOutboxItem>();
+    const database = journalDatabase(items);
+    const firstTab = await createRankedAttemptJournal(database);
+    const attempt = attemptFor(LEVEL_A, -2_000);
+    const intent = await firstTab.beginStart(LEVEL_A, null);
+    await firstTab.acceptStart(intent, attempt);
+    await firstTab.appendCommand(attempt, { type: "remove", tileId: "tile-a" });
+    await firstTab.recordReceipt(attempt, {
+      ...completionFor(LEVEL_A),
+      accountBinding: { state: "guest" },
+    });
+    const status = deferred<Awaited<ReturnType<LeaderboardClient["getAttempt"]>>>();
+    const client = clientFake({ getAttempt: vi.fn(() => status.promise) });
+    const restartedJournal = await createRankedAttemptJournal(database);
+    const { result } = renderHook(() => useRankedAttempt({
+      enabled: true, levelVersionId: LEVEL_A, client, journal: restartedJournal,
+      restoreCommands: () => "complete",
+    }));
+
+    expect(result.current.recoveryReady).toBe(false);
+    await waitFor(() => expect(result.current.recoveryReady).toBe(true));
+    expect(result.current.attemptState.status).toBe("result_pending");
+    await act(async () => status.resolve({ status: "completed", result: completionFor(LEVEL_A),
+      accountBinding: { state: "guest" } }));
+    await waitFor(() => expect(result.current.attemptState.status).toBe("accepted"));
+  });
+
   it("retains_an_accepted_receipt_while_account_binding_is_pending", async () => {
     vi.useFakeTimers();
     const items = new Map<string, RankedOutboxItem>();

@@ -75,6 +75,7 @@ export function useRankedAttempt({
   });
   const [countdown, setCountdown] = useState<number>();
   const [rankedElapsedSeconds, setRankedElapsedSeconds] = useState<number>();
+  const [recoveryReady, setRecoveryReady] = useState(false);
   const [journalState, setJournalState] = useState<{
     readonly durability: JournalDurability;
     readonly navigationBlocked: boolean;
@@ -245,9 +246,11 @@ export function useRankedAttempt({
 
     if (!enabled || !levelVersionId) {
       setRecordsState({ status: "loading" });
+      setRecoveryReady(true);
       return;
     }
 
+    setRecoveryReady(false);
     setRecordsState({ status: "loading" });
     void refreshRecords();
 
@@ -309,8 +312,13 @@ export function useRankedAttempt({
     if (legacySession) {
       if (legacySession.attempt.levelVersionId === levelVersionId) {
         void getJournal().then(() => {
-          if (flowGeneration === flowGenerationRef.current) restoreSession(legacySession);
+          if (flowGeneration === flowGenerationRef.current) {
+            restoreSession(legacySession);
+            setRecoveryReady(true);
+          }
         });
+      } else {
+        setRecoveryReady(true);
       }
     } else {
       void getJournal().then(async (activeJournal) => {
@@ -320,6 +328,7 @@ export function useRankedAttempt({
         if (durable && flowGeneration === flowGenerationRef.current) {
           restoreSession({ attempt: durable.attempt, commandLog: durable.commandLog });
         }
+        if (flowGeneration === flowGenerationRef.current) setRecoveryReady(true);
       });
     }
 
@@ -626,6 +635,7 @@ export function useRankedAttempt({
     countdown,
     rankedElapsedSeconds,
     journalState,
+    recoveryReady,
     startRankedRun,
     cancelRankedRun,
     recordCommand,

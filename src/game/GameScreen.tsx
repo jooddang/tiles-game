@@ -77,7 +77,7 @@ export function GameScreen({
     && ranked.attemptState.status !== "active";
 
   useEffect(() => {
-    if (!leaderboardEnabled || stageMode !== "ranked" || isLevelComplete || !currentLevelVersionId) return;
+    if (!leaderboardEnabled || !ranked.recoveryReady || stageMode !== "ranked" || isLevelComplete || !currentLevelVersionId) return;
     if (ranked.attemptState.status === "unranked") void ranked.startRankedRun();
   }, [currentLevelVersionId, isLevelComplete, leaderboardEnabled, ranked, stageMode]);
 
