@@ -10,49 +10,49 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("visible_blockers_prevent_removal_on_hex_tower", async ({ page }) => {
-  await page.getByRole("button", { name: /Tile ref-122 arrow upLeft/i }).click();
+  await page.getByRole("button", { name: /Tile ref-stage-1-2 arrow upRight/i }).click();
 
   await expect(page.getByText("Blocked")).toBeVisible();
   await expect(page.getByText(/tile in the arrow path|tiles in the arrow path/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: /Tile ref-122 arrow upLeft/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Tile ref-stage-1-2 arrow upRight/i })).toBeVisible();
 });
 
 test("restart_resets_the_board", async ({ page }) => {
-  await page.getByRole("button", { name: /Tile ref-1 arrow upRight/i }).click();
-  await expect(page.getByRole("button", { name: /Tile ref-1 arrow upRight/i })).toHaveAttribute(
+  await page.getByRole("button", { name: /Tile ref-stage-1-1 arrow upRight/i }).click();
+  await expect(page.getByRole("button", { name: /Tile ref-stage-1-1 arrow upRight/i })).toHaveAttribute(
     "data-exiting",
     "true",
   );
-  await expect(page.getByRole("button", { name: /Tile ref-1 arrow upRight/i })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Tile ref-stage-1-1 arrow upRight/i })).toHaveCount(0);
 
   await page.getByRole("button", { name: "Retry" }).click();
 
-  await expect(page.getByRole("button", { name: /Tile ref-1 arrow upRight/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Tile ref-stage-1-1 arrow upRight/i })).toBeVisible();
   await expect(page.getByTestId("move-count")).toHaveText("0");
 });
 
 test("undo_restores_a_removed_tile", async ({ page }) => {
-  await page.getByRole("button", { name: /Tile ref-1 arrow upRight/i }).click();
-  await expect(page.getByRole("button", { name: /Tile ref-1 arrow upRight/i })).toHaveAttribute(
+  await page.getByRole("button", { name: /Tile ref-stage-1-1 arrow upRight/i }).click();
+  await expect(page.getByRole("button", { name: /Tile ref-stage-1-1 arrow upRight/i })).toHaveAttribute(
     "data-exiting",
     "true",
   );
 
   await page.getByRole("button", { name: "Undo" }).click();
 
-  await expect(page.getByRole("button", { name: /Tile ref-1 arrow upRight/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Tile ref-stage-1-1 arrow upRight/i })).toBeVisible();
 });
 
 test("multiple_tiles_can_move_while_exit_animations_are_running", async ({ page }) => {
-  await page.getByRole("button", { name: /Tile ref-1 arrow upRight/i }).click();
-  await page.getByRole("button", { name: /Tile ref-3 arrow up/i }).click();
+  await page.getByRole("button", { name: /Tile ref-stage-1-1 arrow upRight/i }).click();
+  await page.getByRole("button", { name: /Tile ref-stage-1-3 arrow up/i }).click();
 
   await expect(page.getByTestId("move-count")).toHaveText("2");
-  await expect(page.getByRole("button", { name: /Tile ref-1 arrow upRight/i })).toHaveAttribute(
+  await expect(page.getByRole("button", { name: /Tile ref-stage-1-1 arrow upRight/i })).toHaveAttribute(
     "data-exiting",
     "true",
   );
-  await expect(page.getByRole("button", { name: /Tile ref-3 arrow up/i })).toHaveAttribute(
+  await expect(page.getByRole("button", { name: /Tile ref-stage-1-3 arrow up/i })).toHaveAttribute(
     "data-exiting",
     "true",
   );
@@ -62,7 +62,7 @@ test("mobile_exit_animation_stays_visible_during_the_first_half", async ({ page 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
 
-  await page.getByRole("button", { name: /Tile ref-1 arrow upRight/i }).click();
+  await page.getByRole("button", { name: /Tile ref-stage-1-1 arrow upRight/i }).click();
   await page.waitForTimeout(350);
 
   const exitingOpacity = await page
@@ -77,7 +77,7 @@ test("desktop_viewport_is_playable_without_layout_overlap", async ({ page }) => 
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.reload();
 
-  await expect(page.getByLabel(/Hex Tower board/i)).toBeVisible();
+  await expect(page.getByLabel(/Hex Tower 1 board/i)).toBeVisible();
   await expect(page.getByRole("button", { name: /Tile ref-/i }).first()).toBeVisible();
 });
 
@@ -85,19 +85,19 @@ test("mobile_viewport_is_playable_without_layout_overlap", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
 
-  await expect(page.getByLabel(/Hex Tower board/i)).toBeVisible();
+  await expect(page.getByLabel(/Hex Tower 1 board/i)).toBeVisible();
   await expect(page.getByRole("button", { name: /Tile ref-/i }).first()).toBeVisible();
 });
 
 test("keyboard_activation_can_remove_a_focused_tile", async ({ page }) => {
-  await page.getByRole("button", { name: /Tile ref-1 arrow upRight/i }).focus();
+  await page.getByRole("button", { name: /Tile ref-stage-1-1 arrow upRight/i }).focus();
   await page.keyboard.press("Enter");
 
-  await expect(page.getByRole("button", { name: /Tile ref-1 arrow upRight/i })).toHaveAttribute(
+  await expect(page.getByRole("button", { name: /Tile ref-stage-1-1 arrow upRight/i })).toHaveAttribute(
     "data-exiting",
     "true",
   );
-  await expect(page.getByRole("button", { name: /Tile ref-1 arrow upRight/i })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Tile ref-stage-1-1 arrow upRight/i })).toHaveCount(0);
   await expect(page.getByTestId("move-count")).toHaveText("1");
 });
 

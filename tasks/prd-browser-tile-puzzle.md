@@ -2,12 +2,12 @@
 
 ## Document Status
 
-- Status: Complete
+- Status: In Progress
 - File Mode: Split
-- Current Phase: Complete
-- Active Phase File: [Phase 5](./prd-browser-tile-puzzle/phase-05-polish-accessibility-release.md)
+- Current Phase: Phase 6
+- Active Phase File: [Phase 6](./prd-browser-tile-puzzle/phase-06-ten-stage-progression.md)
 - Context File: [context.md](./prd-browser-tile-puzzle/context.md)
-- Last Updated: 2026-06-05
+- Last Updated: 2026-08-16
 - PRD File: `tasks/prd-browser-tile-puzzle.md`
 - Purpose: Living PRD and execution source of truth. Check off work here, update this document as implementation reveals new information, and revise future phases before continuing when the plan changes.
 
@@ -101,7 +101,7 @@ The main product risk is that the base rule has no wrong legal moves. If the gam
 - FR-11: The app must include restart and undo controls.
 - FR-12: The app must show level completion stats: moves and elapsed time.
 - FR-13: The app must persist completed levels, current level, and basic settings in local storage.
-- FR-14: The level manifest must include only the reference-style Hex Tower level for this build.
+- FR-14: The level manifest must include exactly ten ordered reference-style Hex Tower stages for this build.
 - FR-15: The generator must produce deterministic candidates from a seed.
 - FR-16: The generator must validate generated boards before they can be added to the manifest.
 - FR-17: The difficulty scorer must compute tile count, dependency edge count, dependency depth, initial removable count, availability ratio, and blocker density.
@@ -166,21 +166,22 @@ The main product risk is that the base rule has no wrong legal moves. If the gam
 | Phase 3: Generator and Level Manifest | Complete | Implement deterministic generation, scoring, and curated MVP levels. | Generator determinism, solvability, difficulty metric, and manifest validation tests. | [phase-03-generator-and-levels.md](./prd-browser-tile-puzzle/phase-03-generator-and-levels.md) |
 | Phase 4: Game UI and Persistence | Complete | Build responsive gameplay UI, controls, feedback, and local progress. | Component tests plus E2E for core flows and storage behavior. | [phase-04-game-ui-and-persistence.md](./prd-browser-tile-puzzle/phase-04-game-ui-and-persistence.md) |
 | Phase 5: Polish, Accessibility, and Release Readiness | Complete | Tune responsive play, accessibility, performance, and release checks. | Playwright mobile/desktop, accessibility checks, build, and manual smoke. | [phase-05-polish-accessibility-release.md](./prd-browser-tile-puzzle/phase-05-polish-accessibility-release.md) |
+| Phase 6: Ten-Stage Progression | In Progress | Replace the two-level opening with ten ordered stages that grow from about one-quarter of the current board to the full board. | Manifest invariants, legacy level/hash preservation, progress restore, browser checks, and ranked contract activation. | [phase-06-ten-stage-progression.md](./prd-browser-tile-puzzle/phase-06-ten-stage-progression.md) |
 
-## Final Multi-Pass Review After All Phases
+## Final Multi-Pass Review After Current Phase
 
 Complete in order:
 
-- [x] 1. Requirements coverage review: every FR, NFR, and success criterion is satisfied or explicitly deferred.
-- [x] 2. Cross-phase integration review: phase outputs work together without gaps, broken assumptions, or duplicated ownership.
-- [x] 3. Correctness review: happy paths, edge cases, errors, empty states, permissions, and state transitions are handled.
-- [x] 4. Simplicity/refactor review: the final design is no more complex than necessary.
-- [x] 5. Duplication/cleanup review: repeated logic, dead code, temporary code, noisy logs, commented leftovers, unused files, and unused dependencies are removed.
-- [x] 6. Security/privacy review: auth, access control, secrets, sensitive data, auditability, and data exposure are safe.
-- [x] 7. Performance/load review: bottlenecks, expensive queries, N+1 patterns, unnecessary renders, and avoidable network calls are addressed.
-- [x] 8. Validation review: the final mix of unit, integration, API E2E, UI/browser, simulator, visual, manual, or observability checks is appropriate for the risk.
-- [x] 9. Documentation/operability review: docs, runbooks, release notes, migrations, rollback, monitoring, or support notes are updated when needed.
-- [x] 10. PRD closeout review: status is Complete, change log is current, and follow-ups are recorded.
+- [ ] 1. Requirements coverage review: every FR, NFR, and success criterion is satisfied or explicitly deferred.
+- [ ] 2. Cross-phase integration review: phase outputs work together without gaps, broken assumptions, or duplicated ownership.
+- [ ] 3. Correctness review: happy paths, edge cases, errors, empty states, permissions, and state transitions are handled.
+- [ ] 4. Simplicity/refactor review: the final design is no more complex than necessary.
+- [ ] 5. Duplication/cleanup review: repeated logic, dead code, temporary code, noisy logs, commented leftovers, unused files, and unused dependencies are removed.
+- [ ] 6. Security/privacy review: auth, access control, secrets, sensitive data, auditability, and data exposure are safe.
+- [ ] 7. Performance/load review: bottlenecks, expensive queries, N+1 patterns, unnecessary renders, and avoidable network calls are addressed.
+- [ ] 8. Validation review: the final mix of unit, integration, API E2E, UI/browser, simulator, visual, manual, or observability checks is appropriate for the risk.
+- [ ] 9. Documentation/operability review: docs, runbooks, release notes, migrations, rollback, monitoring, or support notes are updated when needed.
+- [ ] 10. PRD closeout review: status is Complete, change log is current, and follow-ups are recorded.
 
 ## Open Questions
 
@@ -209,3 +210,4 @@ Complete in order:
 - 2026-06-05: Mobile motion follow-up changed tile exit animation to keep the tile opaque through the first half of motion, extended the removal timer to 1200ms, and added an E2E regression test for visible mobile exit animation.
 - 2026-06-05: Difficulty follow-up removed long same-direction strips from Hex Tower, reduced maximum same-direction run across rows, columns, and diagonals to 4, and added a manifest regression test for that constraint.
 - 2026-06-05: Engineering review follow-up unified blocker detection with rendered hex geometry so visually blocked tiles no longer disappear, and added an E2E regression for that behavior.
+- 2026-08-16: Reopened the PRD for Phase 6 ten-stage progression. Historical account and leaderboard non-goals have been superseded by the existing integrated ranked-play system; Phase 6 changes neither contract.

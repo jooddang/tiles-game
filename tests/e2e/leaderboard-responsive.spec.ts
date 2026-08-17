@@ -65,8 +65,9 @@ for (const viewport of viewports) {
     await expect(page.getByText("Swift Fox 42").first()).toBeVisible();
     await page.getByRole("button", { name: "Records" }).click();
 
+    const usesDialog = viewport.width <= 760 || viewport.height <= 850;
     const panel =
-      viewport.width <= 760
+      usesDialog
         ? page.getByRole("dialog")
         : page.locator(".leaderboard-panel-inline");
     await expect(panel).toBeVisible();
@@ -81,11 +82,11 @@ for (const viewport of viewports) {
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width + 1);
     expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height + 1);
 
-    if (viewport.width <= 760) {
+    if (usesDialog) {
       await expect(page.locator("body > div").first()).toHaveAttribute("inert", "");
     } else {
       await expect(page.getByRole("dialog")).toHaveCount(0);
-      await expect(page.getByLabel(/Hex Tower board/i)).toBeVisible();
+      await expect(page.getByLabel(/Hex Tower 1 board/i)).toBeVisible();
     }
 
     await page.screenshot({

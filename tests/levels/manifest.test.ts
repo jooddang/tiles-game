@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { scoreDifficulty, type LevelDefinition } from "../../src/engine";
 import { levelManifest, validateLevelManifest } from "../../src/levels/manifest";
+import { levelVersionId } from "../../src/leaderboard/replayContract";
 
 describe("levelManifest", () => {
   it("validateLevelManifest_accepts_every_shipped_level", () => {
@@ -92,22 +93,81 @@ describe("levelManifest", () => {
     }
   });
 
-  it("hex_tower_has_dense_reference_map_scale", () => {
-    const metrics = scoreDifficulty(levelManifest[0]);
+  it("full_hex_tower_has_dense_reference_map_scale", () => {
+    const metrics = scoreDifficulty(levelManifest[8]);
 
-    expect(levelManifest[0].title).toBe("Hex Tower");
+    expect(levelManifest[8].title).toBe("Hex Tower");
     expect(metrics.tileCount).toBe(270);
     expect(metrics.initialRemovableCount).toBeGreaterThan(0);
     expect(metrics.initialRemovableCount).toBeLessThanOrEqual(40);
     expect(metrics.blockerDensity).toBeGreaterThanOrEqual(6);
-    expect(findLongestSameDirectionRun(levelManifest[0])).toBeLessThanOrEqual(4);
+    expect(findLongestSameDirectionRun(levelManifest[8])).toBeLessThanOrEqual(4);
   });
 
-  it("exports_ordered_levels_for_mvp_progression", () => {
+  it("exports_ten_ordered_levels_with_increasing_length", () => {
     expect(levelManifest.map((level) => level.id)).toEqual([
+      "reference-hex-tower-stage-1",
+      "reference-hex-tower-stage-2",
+      "reference-hex-tower-stage-3",
+      "reference-hex-tower-stage-4",
+      "reference-hex-tower-stage-5",
+      "reference-hex-tower-stage-6",
+      "reference-hex-tower-stage-7",
+      "reference-hex-tower-stage-8",
       "reference-hex-tower-1",
       "reference-hex-tower-2",
     ]);
+    expect(levelManifest.map(({ width, height, tiles }) => ({
+      width,
+      height,
+      tileCount: tiles.length,
+    }))).toEqual([
+      { width: 9, height: 8, tileCount: 72 },
+      { width: 9, height: 11, tileCount: 99 },
+      { width: 9, height: 14, tileCount: 126 },
+      { width: 9, height: 17, tileCount: 153 },
+      { width: 9, height: 20, tileCount: 180 },
+      { width: 9, height: 23, tileCount: 207 },
+      { width: 9, height: 26, tileCount: 234 },
+      { width: 9, height: 28, tileCount: 252 },
+      { width: 9, height: 30, tileCount: 270 },
+      { width: 9, height: 30, tileCount: 270 },
+    ]);
+    for (const level of levelManifest) {
+      expect(new Set(level.tiles.map((tile) => tile.id)).size).toBe(level.tiles.length);
+    }
+  });
+
+  it("preserves_the_legacy_full_board_version_hashes", async () => {
+    expect(levelManifest[8]).toMatchObject({
+      id: "reference-hex-tower-1",
+      title: "Hex Tower",
+      width: 9,
+      height: 30,
+    });
+    expect(levelManifest[8].tiles).toHaveLength(270);
+    expect(await levelVersionId(levelManifest[8])).toBe(
+      "sha256:d3f9f30c607ee8a93522025eee2c4c546052cfac9f4d10755db833f47e3abb33",
+    );
+    expect(levelManifest[9]).toMatchObject({
+      id: "reference-hex-tower-2",
+      title: "Hex Tower II",
+      width: 9,
+      height: 30,
+    });
+    expect(levelManifest[9].tiles).toHaveLength(270);
+    expect(await levelVersionId(levelManifest[9])).toBe(
+      "sha256:a42bcaebd0dda403614577c8f3d77941ff9fde34076246e471b30616f0dfce9a",
+    );
+  });
+
+  it("assigns_a_distinct_version_hash_to_every_stage", async () => {
+    const versionIds = await Promise.all(
+      levelManifest.map((level) => levelVersionId(level)),
+    );
+
+    expect(versionIds).toHaveLength(10);
+    expect(new Set(versionIds).size).toBe(10);
   });
 });
 

@@ -372,7 +372,7 @@ function getFocusable(container: HTMLElement | null | undefined) {
 }
 
 function useMobileRecords() {
-  const query = "(max-width: 760px)";
+  const query = "(max-width: 760px), (max-height: 850px)";
   const [isMobile, setIsMobile] = useState(() =>
     typeof window.matchMedia === "function"
       ? window.matchMedia(query).matches

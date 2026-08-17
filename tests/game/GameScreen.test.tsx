@@ -40,8 +40,47 @@ describe("GameScreen", () => {
   it("renders_the_first_level", () => {
     render(<GameScreen />);
 
+    expect(screen.getByRole("heading", { name: "Hex Tower 1" })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Hex Tower 1 board/i)).toBeInTheDocument();
+  });
+
+  it("restores_and_preserves_legacy_full_board_progress_when_navigating", () => {
+    const legacyProgress = {
+      currentLevelId: "reference-hex-tower-1",
+      completedLevelIds: ["reference-hex-tower-1", "reference-hex-tower-2"],
+      bestStatsByLevelId: {
+        "reference-hex-tower-1": { moves: 270, seconds: 42 },
+        "reference-hex-tower-2": { moves: 270, seconds: 84 },
+      },
+    };
+    window.localStorage.setItem(
+      "tiles-game-progress-v2",
+      JSON.stringify(legacyProgress),
+    );
+
+    render(<GameScreen />);
+
     expect(screen.getByRole("heading", { name: "Hex Tower" })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Hex Tower board/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/pick level/i)).toHaveValue("8");
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByRole("heading", { name: "Hex Tower II" })).toBeInTheDocument();
+
+    expect(JSON.parse(window.localStorage.getItem("tiles-game-progress-v2") ?? "{}")).toEqual({
+      ...legacyProgress,
+      currentLevelId: "reference-hex-tower-2",
+    });
+  });
+
+  it("offers_all_ten_stages_and_navigates_into_the_legacy_full_board", () => {
+    render(<GameScreen />);
+
+    const picker = screen.getByLabelText(/pick level/i);
+    expect(screen.getAllByRole("option")).toHaveLength(10);
+    fireEvent.change(picker, { target: { value: "7" } });
+    expect(screen.getByRole("heading", { name: "Hex Tower 8" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByRole("heading", { name: "Hex Tower" })).toBeInTheDocument();
+    expect(picker).toHaveValue("8");
   });
 
   it("does_not_allow_a_move_before_ranked_attempt_is_active_or_practice_is_explicit", async () => {
