@@ -1,7 +1,7 @@
 # Phase 6: Ten-Stage Progression
 
 Parent PRD: [PRD: Browser Tile Puzzle](../prd-browser-tile-puzzle.md)
-Status: In Progress
+Status: Complete
 Last Updated: 2026-08-16
 
 ## Objective
@@ -27,7 +27,7 @@ Give new players a shorter first board and ten ordered stages whose length grows
 - [x] First load without progress opens Stage 1; saved legacy IDs restore the corresponding full board.
 - [x] Next/previous navigation and completion advancement work across all ten stages.
 - [x] Ranked play remains isolated by level version, and the generated replay contract contains all ten levels.
-- [ ] The eight new level versions are active before the new static game is deployed; the two legacy versions remain active.
+- [x] The eight new level versions are active before the new static game is deployed; the two legacy versions remain active.
 
 ## Implementation Scope
 
@@ -66,11 +66,11 @@ Give new players a shorter first board and ten ordered stages whose length grows
 
 ### Gate 3: release contract
 
-- [ ] The generated contract contains exactly ten distinct version IDs and both pinned legacy hashes.
-- [ ] Production database reports exactly the intended ten active version IDs before static publication, with no unintended retirement or extra active version.
-- [ ] Roadcrosser contract/snapshot tests pass after sync.
-- [ ] Tile and Roadcrosser CI/deploys succeed.
-- [ ] Production smoke verifies the ten-stage UI, both legacy Top-10 reads, and a new-stage ranked completion without `LEVEL_VERSION_UNKNOWN` or `LEVEL_VERSION_RETIRED`.
+- [x] The generated contract contains exactly ten distinct version IDs and both pinned legacy hashes.
+- [x] Production database reports exactly the intended ten active version IDs before static publication, with no unintended retirement or extra active version.
+- [x] Roadcrosser contract/snapshot tests pass after sync.
+- [x] Tile and Roadcrosser CI/deploys succeed.
+- [x] Production smoke verifies the ten-stage UI, both legacy Top-10 reads, and a new-stage ranked completion without `LEVEL_VERSION_UNKNOWN` or `LEVEL_VERSION_RETIRED`.
 
 ## Rollback
 
@@ -79,11 +79,12 @@ Give new players a shorter first board and ten ordered stages whose length grows
 
 ## Phase-End Review
 
-- [ ] Requirements-to-diff review completed.
-- [ ] Correctness, compatibility, simplicity, cleanup, security, performance, and validation reviewed.
-- [ ] PRD evidence and change log updated only after each gate passes.
+- [x] Requirements-to-diff review completed.
+- [x] Correctness, compatibility, simplicity, cleanup, security, performance, and validation reviewed.
+- [x] PRD evidence and change log updated only after each gate passes.
 
 ## Change Log
 
 - 2026-08-16: Phase created. Product and architecture reviews selected fixed-width, increasing-height stages and immutable legacy Stages 9–10.
 - 2026-08-16: Gates 1–2 passed with 196 unit tests, 38 Playwright tests, typecheck, lint, build, generated-contract inspection, screenshots, and independent P1/P2 reviews.
+- 2026-08-16: Gate 3 passed. Supabase reported the exact ten active hashes at the existing zero-second quarantine floor, both legacy hashes remained active, Roadcrosser and Tile CI/deploys passed, production host smoke passed, and a 72-command Stage 1 replay was published and read back.
