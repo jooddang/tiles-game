@@ -58,7 +58,7 @@ test("level_clear_shows_score_and_records_before_the_next_level", async ({
 
   const dialog = page.getByRole("dialog", { name: "Level complete" });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByText("270 moves")).toBeVisible();
+  await expect(dialog.getByText("72 moves")).toBeVisible();
   await expect(
     dialog.getByRole("table", {
       name: "Server-validated all-time Top 10",
@@ -81,7 +81,7 @@ test("level_clear_shows_score_and_records_before_the_next_level", async ({
   });
 
   await dialog.getByRole("button", { name: "Next level" }).click();
-  await expect(page.getByRole("heading", { name: "Hex Tower II" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Hex Tower 2" })).toBeVisible();
 });
 
 test("guest_completion_recovers_before_ranked_auto_start_after_a_document_reload", async ({ page }) => {

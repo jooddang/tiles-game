@@ -7,9 +7,9 @@ describe("App", () => {
     render(<App />);
 
     expect(
-      screen.getByRole("heading", { name: "Hex Tower" }),
+      screen.getByRole("heading", { name: "Hex Tower 1" }),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText(/Hex Tower board/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Hex Tower 1 board/i)).toBeInTheDocument();
     expect(screen.queryByText(/Connecting account|Sign in to keep records/i)).not.toBeInTheDocument();
   });
 });

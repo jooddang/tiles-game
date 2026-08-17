@@ -1,7 +1,8 @@
 import type { Direction, LevelDefinition, Tile } from "../engine";
 
 const WIDTH = 9;
-const HEIGHT = 30;
+const FULL_HEIGHT = 30;
+const INTRO_STAGE_HEIGHTS = [8, 11, 14, 17, 20, 23, 26, 28] as const;
 
 const DIRECTION_BY_CODE: Record<string, Direction> = {
   U: "up",
@@ -55,17 +56,28 @@ const RANDOM_HARD_ROWS: readonly string[] = [
 ];
 
 export const referenceLevels: readonly LevelDefinition[] = [
+  ...INTRO_STAGE_HEIGHTS.map((height, index) =>
+    createReferenceLevel({
+      id: `reference-hex-tower-stage-${index + 1}`,
+      title: `Hex Tower ${index + 1}`,
+      tileIdPrefix: `ref-stage-${index + 1}`,
+      rows: RANDOM_HARD_ROWS,
+      height,
+    }),
+  ),
   createReferenceLevel({
     id: "reference-hex-tower-1",
     title: "Hex Tower",
     tileIdPrefix: "ref",
     rows: RANDOM_HARD_ROWS,
+    height: FULL_HEIGHT,
   }),
   createReferenceLevel({
     id: "reference-hex-tower-2",
     title: "Hex Tower II",
     tileIdPrefix: "ref-2",
     rows: mirrorRowsHorizontally(RANDOM_HARD_ROWS),
+    height: FULL_HEIGHT,
   }),
 ];
 
@@ -74,15 +86,17 @@ function createReferenceLevel({
   title,
   tileIdPrefix,
   rows,
+  height,
 }: {
   readonly id: string;
   readonly title: string;
   readonly tileIdPrefix: string;
   readonly rows: readonly string[];
+  readonly height: number;
 }): LevelDefinition {
   const tiles: Tile[] = [];
 
-  for (let row = 0; row < HEIGHT; row += 1) {
+  for (let row = 0; row < height; row += 1) {
     for (let col = 0; col < WIDTH; col += 1) {
       const direction = directionFromCode(rows[row][col]);
       tiles.push({
@@ -98,7 +112,7 @@ function createReferenceLevel({
     id,
     title,
     width: WIDTH,
-    height: HEIGHT,
+    height,
     tiles,
   };
 }
