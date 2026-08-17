@@ -65,7 +65,7 @@ for (const viewport of viewports) {
     await expect(page.getByText("Swift Fox 42").first()).toBeVisible();
     await page.getByRole("button", { name: "Records" }).click();
 
-    const usesDialog = viewport.width <= 760 || viewport.height <= 600;
+    const usesDialog = viewport.width <= 760 || viewport.height <= 850;
     const panel =
       usesDialog
         ? page.getByRole("dialog")
